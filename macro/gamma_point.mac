@@ -1,0 +1,16 @@
+/run/verbose 1
+/run/initialize
+
+/gun/sourceGen false
+/gps/particle gamma
+
+/gps/ene/type Mono 
+
+/gps/pos/type   Plane 
+/gps/pos/shape  Circle
+/gps/pos/rot1   0 1 0
+/gps/pos/rot2   1 0 0 
+/gps/pos/radius 0.001 cm
+/gps/pos/centre 0 1.5 30 cm
+#/gps/pos/centre 0 1.5 12 cm
+/gps/direction  0 0 -1

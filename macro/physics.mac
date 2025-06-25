@@ -1,0 +1,7 @@
+#This file is to set the Phylsics List for simulation
+
+/physics/addPhysics Em_Standard_opt3        # Electromagnetic model
+/physics/addPhysics Hd_ElasticHP            # Hadronic elastic model with HP
+/physics/addPhysics QGSP_BIC_HP             # Hadronic inelastic model
+/physics/addPhysics Hd_IonBinary            # Hadronic inelastic model for ions
+/physics/addPhysics Hd_RadioactiveDecay     # Radioactive decay

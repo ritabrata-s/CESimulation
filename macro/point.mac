@@ -1,0 +1,22 @@
+/run/verbose 1
+/run/initialize
+/gun/sourceGen false
+/gps/particle gamma
+/gps/ene/type Mono 
+/gps/pos/type   Plane
+/gps/pos/shape  Circle
+/gps/pos/radius 0.05 cm
+
+#/gps/pos/rot1   1 0 0
+#/gps/pos/rot2   0 1 0 
+#/gps/direction  0 0 -1
+#/gps/pos/centre -17 0 17
+
+/gps/pos/rot1 1 0 0.222049
+/gps/pos/rot2 1.38941e-10 1 0
+/gps/direction 0.222049 -3.08517e-11 -1
+/gps/pos/centre -6.50308 9.03544e-10 29.2867
+
+
+/gps/ene/mono 1 keV  
+/run/beamOn 1000

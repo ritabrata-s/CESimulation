@@ -1,0 +1,67 @@
+/run/verbose 1
+/run/initialize
+/gun/sourceGen false
+/gps/particle gamma
+/gps/pos/type   Plane 
+/gps/pos/shape  Circle
+/gps/pos/radius 14.5 cm
+/gps/pos/centre 0 0 -5 cm
+/gps/pos/rot1   1 0 0
+/gps/pos/rot2   0 1 0 
+/gps/direction  0 0 1
+/gps/ene/type Mono 
+/gps/ene/mono 10 keV  
+
+#/run/verbose 1
+#/run/initialize
+#/gun/sourceGen false
+#/gps/particle gamma
+##/gps/particle geantino
+#/gps/pos/type   Plane
+#/gps/pos/shape  Circle
+#/gps/pos/radius 20 cm
+#/gps/pos/rot1 1 0 -0
+#/gps/pos/rot2 0 1 0
+#/gps/pos/centre 0 0 30
+#/gps/direction -0 -0 -1
+#/gps/ene/type Lin
+#/gps/ene/min 10 keV
+#/gps/ene/max 50000 keV
+#/gps/ene/gradient  0.
+#/gps/ene/intercept 1.
+
+#/run/verbose 1
+#/run/initialize
+#/gun/sourceGen false
+#/gps/particle gamma
+#/gps/pos/type   Plane
+#/gps/pos/shape  Circle
+#/gps/pos/radius 20 cm
+#/gps/pos/rot1 1 0 -0
+#/gps/pos/rot2 0 1 0
+#/gps/pos/centre 0 0 30
+#/gps/direction -0 -0 -1
+#/gps/ene/type Pow
+#/gps/ene/alpha -1
+#/gps/ene/min 10 keV
+#/gps/ene/max 50000 keV
+
+#/run/verbose 1
+#/run/initialize
+#/gun/sourceGen false
+##/gps/particle gamma
+#/gps/particle proton
+#/gps/pos/type   Plane
+#/gps/pos/shape  Circle
+#/gps/pos/radius 20 cm
+#/gps/pos/rot1 1 0 -1
+#/gps/pos/rot2 -0 1 0
+#/gps/pos/centre 21.2132 0 21.2132
+#/gps/direction -1 -0 -1
+#/gps/ene/type Pow
+#/gps/ene/alpha -1
+##/gps/ene/min 10 keV
+#/gps/ene/min 50000 keV
+#/gps/ene/max 100000 keV
+
+/run/beamOn 100

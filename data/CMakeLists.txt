@@ -1,0 +1,16 @@
+#----------------------------------------------------------------------------
+add_subdirectory(CE_STL)
+add_subdirectory(CE_STL_V2)
+add_subdirectory(CE_STL_V2R1)
+add_subdirectory(CE_STL_V2R2)
+add_subdirectory(CE_STL_V2R3)
+add_subdirectory(CE_STL_V2R4)
+add_subdirectory(CE_STL_V2R5)
+add_subdirectory(CE_STL_V2R6)
+add_subdirectory(CE_STL_V2R7)
+add_subdirectory(CE_STL_V2R8)
+add_subdirectory(CE_STL_V2R9)
+add_subdirectory(Geom)
+add_subdirectory(Spec)
+#
+#----------------------------------------------------------------------------

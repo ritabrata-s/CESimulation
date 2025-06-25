@@ -1,0 +1,22 @@
+
+The CESimulation souftware is at:
+/path_to/CESimulation
+
+CESimulation software install dir at:
+/path_to/CEInstall
+
+Change the  CRYSTALEYE_SYS path in /path_to/CESimulation/ce-setup.sh with the /path_to/CEInstall
+
+To Build (in the build_dir):
+/path_to/build_dir
+cmake -DCMAKE_INSTALL_PREFIX=/path_to/CEInstall /path_to/CESimulation
+
+make 
+make install
+
+To initialize the software:
+./path_to/CEInstall/bin/ce-setup.sh
+
+To run the simulation:
+./CESimu
+(help dialog will appear for running the simualtion)

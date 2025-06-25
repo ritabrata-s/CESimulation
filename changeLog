@@ -1,0 +1,106 @@
+========================================================
+                 Crystal Eye Simulation Software
+========================================================
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Changes made by Ritabrata
+
+18/01/2024
+
+--------------------------------------------------------
+Implementation of an environmental set up file (ce-setup.sh).
+Sets up environmental variables:
+
+CRYSTALEYE_SYS -> installation dir of the simulation software, the executables in
+bin and lib are added to the system PATH and LD_LIBRARY_PATH for global access; 
+
+CRYSTALEYE_DATA -> the CAD stl files and other data files (geometry gdml, volume 
+position information, background spectral information) are installed in the data 
+dir and used through this environment variable in the software;
+
+CRYSTALEYE_MACRO -> the macro files required to run the simulation are installed in 
+the macro dir and accessed through this environment variable;
+
+--------------------------------------------------------
+Addition of data dir to contain the CAD stl files for the geometry. Also may 
+contain other hard coded data required for the simulation in future.
+
+--------------------------------------------------------
+Addition of doc dir for future use for storing documentation (doxygen) files.
+
+--------------------------------------------------------
+Modification of the main CMakeLists.txt file to remove CADMesh variables and
+addition of the subdirectories.
+
+TODO: Need to change the make file redistribution of the software structure.
+
+--------------------------------------------------------
+The sofware distribution have been modified to segregate and accommodate the 
+functionalities like: geometry, Monte Carlo simulation, digitization, analysis,
+eventviewer, etc. in diffrent folders in include and src subfolders.
+
+geometry: Contains the detector structure (and SD declaration) for the MC simulation.
+
+montecarlo: Contains all the simulation functionalities and generates the simulated 
+data in a root data file. The main function (CESimu) to perform the simulation 
+(have been moved) in the src/montecarlo folder.
+
+analysis: Contains the functionalities for reading and analyzing the simulated data.
+The main function CEAna calls for the analysis.
+
+digitization: folder contains the digitization functionalities of the simulated data.
+
+eventviewer: event viewing utilities.
+  
+--------------------------------------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+28/02/2024
+
+--------------------------------------------------------
+The data dir is added with the gdml file containing the the geometry information
+of the detector. It also have other files with the position information of 
+different volumes.
+
+Spectral data for different particle background at the LEO is added for the use 
+of analysis purpose.  
+
+--------------------------------------------------------
+Modifications in the geometry implementation:
+
+The location of the stl files are retrieved (in the detector construction class) 
+from the system variable defined in the configuration file.
+
+The CADMesh dependancy is removed by using an additional class to read and use the 
+stl data. Consequently the procedure of reading and using the stl data in the 
+detectorconstruction class has been modified.
+ 
+--------------------------------------------------------
+Modifications in the MC simulation:
+
+The simulation functionalities have been optimized for the multithread run.
+
+The main function (in CESimu.cc) can be run by providing different arguments
+(CESimu -h for help).
+
+The analysis class of the simulation is modified to rearrange and addition to 
+the output data. Data tree are filled with the use of the container struct through 
+the datamanager classes.
+
+--------------------------------------------------------
+Addition of analysis functionalities of the simulation data:
+
+New classes added for the analysis of the simulated data. The main function 
+in CEAna.cc calls for the analysis (CEAna -h for help). Different classes for the 
+analysis of primary, calorimeter and anticoincidence data. Data I/O managed 
+through the streamer class and analysis is managed through the AnalysisAction 
+class.
+  
+--------------------------------------------------------
+EventViewer implementation:
+
+A graphical interface for viewing individual events from the simulation (data) 
+has been implemented through EventViewer class and main function in CEView.cc
+(CEView -h for help).
+
+--------------------------------------------------------
