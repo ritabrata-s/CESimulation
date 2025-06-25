@@ -1,7 +1,0 @@
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/CrystalEye.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/edit_cache.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/rebuild_cache.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/list_install_components.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/install.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/install/local.dir
-/Users/aleksejsmirnov/Downloads/Code_Libo/CrystalEye/BkgSimulationCode/build1/CMakeFiles/install/strip.dir
