@@ -19,11 +19,13 @@
 #include "TEveBrowser.h"
 #include "TSystem.h"
 #include "TStyle.h"
+#include "TGeoMatrix.h"
 
-ClassImp (CEEventViewer)
+ClassImp(CEEventViewer)
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-CEEventViewer::CEEventViewer(TString fName, string geomVer): fGeomVer(geomVer) {
+CEEventViewer::CEEventViewer(TString fName, string geomVer) :
+    fGeomVer(geomVer) {
   // Set the data streamer and analyzers
   fStreamer = new CEIOStreamer(fName);
   fPrimAna = new CEPrimAnalysis();
@@ -32,10 +34,23 @@ CEEventViewer::CEEventViewer(TString fName, string geomVer): fGeomVer(geomVer) {
 
   fCalAna->SetGeomVersion(fGeomVer);
   fNPIXEL = fCalAna->GetNPixels();
+//  cout << "No. of pixels: " << fNPIXEL << endl;
+  if (fNPIXEL < 1) {
+    cout << "[CEEventViewer::CEEventViewer] No. of pixels (" << fNPIXEL << ") is wrong..." << endl;
+    exit(1);
+  }
 
   // Geometry from gdml file
   fGeomFile = std::getenv("CRYSTALEYE_DATA");
-  fGeomFile += "Geom/geometry.gdml";
+  if (!fGeomVer.compare("V1R0"))
+    fGeomFile += "Geom/geometry.gdml";
+  else if (!fGeomVer.compare("V2R8"))
+    fGeomFile += "Geom/geometry-V2R8.gdml";
+  else {
+    cout << "[CEEventViewer::CEEventViewer] Detector geometry version " << fGeomVer.data()
+        << " has not been implemented yet!" << endl;
+    exit(1);
+  }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -89,19 +104,21 @@ void CEEventViewer::Init() {
   fPrimAna->SetStreamer(fStreamer);
   fPrimAna->Init();
   fNEntPrim = fPrimAna->GetNEntries();
-  cout << "No. of primary entries = " << fNEntPrim << endl;
+//  cout << "No. of primary entries = " << fNEntPrim << endl;
 
-  // Cal data analysis
+// Cal data analysis
   fCalAna->SetStreamer(fStreamer);
+  fCalAna->SetGeomVersion(fGeomVer);
   fCalAna->Init();
   fNEntCal = fCalAna->GetNEntries();
-  cout << "No. of cal entries = " << fNEntCal << endl;
+//  cout << "No. of CAL entries = " << fNEntCal << endl;
 
-  // Acd data analysis
+// Acd data analysis
   fAcdAna->SetStreamer(fStreamer);
+  fAcdAna->SetGeomVersion(fGeomVer);
   fAcdAna->Init();
   fNEntAcd = fAcdAna->GetNEntries();
-  cout << "No. of cal entries = " << fNEntAcd << endl;
+//  cout << "No. of ACD entries = " << fNEntAcd << endl;
 
   if ((fNEntPrim != fNEntCal) || (fNEntPrim != fNEntAcd)) {
     printf("No. of entries in prim, cal and acd tree are not same, please check the data... \n");
@@ -337,13 +354,17 @@ void CEEventViewer::FPrimEvent() {
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEEventViewer::FCalEvent() {
   Int_t nHitsCal = fCalAna->GetNHits(fEvtId);
-  vector < Float_t > edepCal;
-  vector < Int_t > pixCal;
+  vector<Float_t> edepCal;
+  vector<Int_t> pixCal;
+  edepCal.clear();
+  pixCal.clear();
   fCalAna->GetSortedEdeps(fEvtId, edepCal, pixCal);
 
   char volname[100];
   char edepname[100];
   Int_t nN(0);
+  TGeoRotation rot("rot", 0., 0., 0.);
+  rot.RotateX(90.0);
   fCalCrst.clear();
 
   for (auto pId : pixCal) {
@@ -355,10 +376,10 @@ void CEEventViewer::FCalEvent() {
       sprintf(volname, "DownPixel%d", pId);
       sprintf(edepname, "EDownPixel%d", pId);
     }
-    Float_t cnt = 1E-3 * edepCal[nN];
-    Int_t col = (Int_t)((cnt - 1) * (fNCOL - 1) / (fPrimEng - 1));
+    Float_t cnt = /*1E-3 */edepCal[nN];
+    Int_t col = (Int_t) ((cnt - 1) * (fNCOL - 1) / (fPrimEng - 1));
 //    Int_t col = (Int_t)((cnt - edepCal[nHitsCal]) * (fNCOL - 1) / (edepCal[0] - edepCal[nHitsCal]));
-//    cout << pId << '\t' << cnt << '\t' << col << '\t' << volname << endl;
+//    cout << nN << '\t' << pId << '\t' << cnt << '\t' << col << '\t' << volname << endl;
 
     fCalCrst.push_back(new TEveGeoShape(edepname));
     fCalCrst[nN]->SetMainColor(fColors[col]);
@@ -366,11 +387,12 @@ void CEEventViewer::FCalEvent() {
     fCalCrst[nN]->SetMainAlpha(1);
     fCalCrst[nN]->SetShape(
         (TGeoShape*) gGeoManager->GetTopVolume()->FindNode(volname)->GetVolume()->GetShape()->Clone());
+    if (!fGeomVer.compare("V2R8"))
+      fCalCrst[nN]->RefMainTrans().SetFrom(rot);
 
     gEve->AddElement(fCalCrst[nN]);
     nN++;
   }
-
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -378,25 +400,27 @@ void CEEventViewer::FAcdEvent() {
   Float_t eAcdUp(0.), eAcdBot(0.);
   Float_t totEdepAcd = fAcdAna->GetTotalEdep(fEvtId, eAcdUp, eAcdBot);
 
-  vector < Float_t > edepAcd = fAcdAna->GetEdeps(fEvtId);
-  vector < Int_t > pixAcd = fAcdAna->GetPixelIds(fEvtId);
+  vector<Float_t> edepAcd = fAcdAna->GetEdeps(fEvtId);
+  vector<Int_t> pixAcd = fAcdAna->GetPixelIds(fEvtId);
   Int_t nHitsAcd = pixAcd.size();
 
-//  vector < Float_t > vE = edepAcd;
-//  sort(vE.begin(), vE.end(), greater<Float_t>());
+  //  vector < Float_t > vE = edepAcd;
+  //  sort(vE.begin(), vE.end(), greater<Float_t>());
 
   char volname[100];
   char edepname[100];
   Int_t nN(0);
+  TGeoRotation rot("rot", 0., 0., 0.);
+  rot.RotateX(90.0);
   fAcdCrst.clear();
 
   for (auto pId : pixAcd) {
     sprintf(volname, "ACD%d", pId);
     sprintf(edepname, "EACD%d", pId);
     Float_t cnt = edepAcd[nN];
-    Int_t col = (Int_t)((cnt - 1) * (fNCOL - 1) / (fPrimEng - 1));
-//    Int_t col = (Int_t)((cnt - vE[nHitsAcd]) * (fNCOL - 1) / (vE[0] - vE[nHitsAcd]));
-//    cout << pId << '\t' << cnt << '\t' << col << '\t' << volname << endl;
+    Int_t col = (Int_t) ((cnt - 1) * (fNCOL - 1) / (fPrimEng - 1));
+    //    Int_t col = (Int_t)((cnt - vE[nHitsAcd]) * (fNCOL - 1) / (vE[0] - vE[nHitsAcd]));
+//    cout << nN << '\t' << pId << '\t' << cnt << '\t' << col << '\t' << volname << endl;
 
     fAcdCrst.push_back(new TEveGeoShape(edepname));
     fAcdCrst[nN]->SetMainColor(fColors[col]);
@@ -406,14 +430,36 @@ void CEEventViewer::FAcdEvent() {
     if (pId == fNPIXEL) {
       TGeoTranslation t1(0, 0, -0.5);
       fAcdCrst[nN]->RefMainTrans().SetFrom(t1);
+    } else {
+      if (!fGeomVer.compare("V2R8"))
+        fAcdCrst[nN]->RefMainTrans().SetFrom(rot);
     }
     fAcdCrst[nN]->SetShape((TGeoShape*) shp->Clone());
 
     gEve->AddElement(fAcdCrst[nN]);
     nN++;
   }
+/*
+  TEveGeoShape *acdout = new TEveGeoShape("acdout");
+  acdout->SetMainColor(fColors[1]);
+  acdout->SetMainTransparency(0);
+  acdout->SetMainAlpha(1);
+  TGeoShape *shp = gGeoManager->GetTopVolume()->FindNode("ACD30")->GetVolume()->GetShape();
+  acdout->SetShape((TGeoShape*) shp->Clone());
+//  acdout->RefMainTrans().SetFrom(rot);
+  TGeoTranslation t1(0., 0., 0.);
+  TGeoCombiTrans mat(t1, rot);
+//  Double_t *pos = mat.GetTranslation();
+  acdout->RefMainTrans().SetFrom(mat);
+//  TVector3 pos = acdout->RefMainTrans().GetPos();
+//  cout << pos[0] << "\t" << pos[1] << "\t" << pos[2] << endl;
+//  pos.SetMag(40.);
+//  acdout->RefMainTrans().SetPos(pos.X(), pos.Y(), pos.Z());
 
+  gEve->AddElement(acdout);
+*/
 }
+
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEEventViewer::FLabel() {
   fText.Form("Event Id = %d", fEvtId);

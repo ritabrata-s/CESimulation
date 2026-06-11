@@ -20,6 +20,7 @@
 #include "G4SystemOfUnits.hh"
 #include "G4Material.hh"
 #include "G4Box.hh"
+#include "G4Sphere.hh"
 #include "G4Tubs.hh"
 #include "G4LogicalVolume.hh"
 #include "G4PVPlacement.hh"
@@ -59,7 +60,7 @@ CrystalEyeDetectorConstructionV2::CrystalEyeDetectorConstructionV2() {
   StructurePath = std::getenv("CRYSTALEYE_DATA");
 //  StructurePath += "CE_STL/";
 //  StructurePath += "CE_STL_V2/";
-  StructurePath += "CE_STL_V2R6/"; // V2R1, V2R2, V2R3, V2R4, V2R5, V2R6, V2R7, V2R8, V2R9
+  StructurePath += "CE_STL_V2R8/"; // V2R1, V2R2, V2R3, V2R4, V2R5, V2R6, V2R7, V2R8, V2R9
   checkOverlaps = false;
   fCadUnit = 0.1 * mm;
 
@@ -160,6 +161,7 @@ void CrystalEyeDetectorConstructionV2::DefineMaterials() {
   G4Element *Mn = man->FindOrBuildElement("Mn");
   G4Element *Ti = man->FindOrBuildElement("Ti");
   G4Element *Zn = man->FindOrBuildElement("Zn");
+  G4Element *W = man->FindOrBuildElement("W");
 //  G4cout << Ga->GetName() << '\t'  << Ga->GetSymbol() << G4endl;
 //  getchar();
 
@@ -263,6 +265,17 @@ void CrystalEyeDetectorConstructionV2::DefineMaterials() {
   G4Material *Windform = new G4Material(name = "WindForm", density, ncomponents = 2, kStateSolid);
   Windform->AddMaterial(CFiber, fractionmass = 0.1175);
   Windform->AddMaterial(N12, fractionmass = 0.8825);
+//  mWindF = new G4Material(name = "WindForm", density, ncomponents = 2, kStateSolid);
+//  mWindF->AddMaterial(CFiber, fractionmass = 0.1175);
+//  mWindF->AddMaterial(N12, fractionmass = 0.8825);
+
+  density = 8.96 * g / cm3;
+  G4Material *mCu = new G4Material(name = "Copper", density, ncomponents = 1);
+  mCu->AddElement(Cu, fractionmass = 1.);
+
+  density = 19.3 * g / cm3;
+  mTung = new G4Material(name = "Tungsten", density, ncomponents = 1);
+  mTung->AddElement(W, fractionmass = 1.);
 
   //G4cout << *(G4Material::GetMaterialTable()) << G4endl;
 
@@ -274,6 +287,7 @@ void CrystalEyeDetectorConstructionV2::DefineMaterials() {
   dnPixelMaterial = lyso; //gagg; //
   alStrMaterial = Al;
   wfStrMaterial = Windform;
+//  mWindF = Windform;
 }
 
 //------------------------------------------------------------
@@ -306,6 +320,7 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
   G4VisAttributes *VisAtt_Structure = new G4VisAttributes();
   VisAtt_Structure->SetVisibility(true);
   VisAtt_Structure->SetForceWireframe(TRUE);
+//  VisAtt_Structure->SetForceSolid(TRUE);
   VisAtt_Structure->SetColour(G4Colour::Red());
 
   // Complete the Payload parameters definition
@@ -329,11 +344,10 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
   // fascia modello nuovo con anti a piastrelle
   std::string file_name;
   char *tmp_char;
-  int cpN = 0;
+//  int cpN = 0;
 
   G4RotationMatrix *rotstr = new G4RotationMatrix();
-//  rotstr->rotateX(-90.0 * deg); // V2R7
-  /*
+  rotstr->rotateX(-90.0 * deg); // V2R7
   for (int nVol = 1; nVol <= 22; nVol++) {
     file_name.clear();
     file_name = StructurePath + "Alum_Parts/" + std::to_string(nVol) + ".stl";
@@ -343,11 +357,15 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
     stlup.Scale(mm);
     solidAlStructure = stlup.CreateG4Solid("Alum" + std::to_string(nVol));
 
+//    if (nVol >= 12)
+//      logicAlStructure = new G4LogicalVolume(solidAlStructure, dnPixelMaterial, "Alum" + std::to_string(nVol), 0, 0, 0);
+//    else
     logicAlStructure = new G4LogicalVolume(solidAlStructure, alStrMaterial, "Alum" + std::to_string(nVol), 0, 0, 0);
+
     logicAlStructure->SetVisAttributes(VisAtt_Structure);
 
-//    physiAlStructure = new G4PVPlacement(rotstr, G4ThreeVector(), "Alum" + std::to_string(nVol), logicAlStructure,
-//        physiWorld, false, nVol - 1, checkOverlaps);
+    physiAlStructure = new G4PVPlacement(rotstr, G4ThreeVector(), "Alum" + std::to_string(nVol), logicAlStructure,
+        physiWorld, false, nVol - 1, checkOverlaps);
   }
 
   //
@@ -362,19 +380,26 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
     stlup.Scale(mm);
     solidWfStructure = stlup.CreateG4Solid("Windform" + std::to_string(nVol));
 
+//    if (nVol > 32 && nVol <= 64 /*&& (nVol % 2)*/)
+//      logicWfStructure = new G4LogicalVolume(solidWfStructure, dnPixelMaterial, "Windform" + std::to_string(nVol), 0, 0, 0);
+////      wfStrMaterial = mTung;
+//    else
+//      logicWfStructure = new G4LogicalVolume(solidWfStructure, wfStrMaterial, "Windform" + std::to_string(nVol), 0, 0, 0);
+////      wfStrMaterial = mWindF;
+
     logicWfStructure = new G4LogicalVolume(solidWfStructure, wfStrMaterial, "Windform" + std::to_string(nVol), 0, 0, 0);
     logicWfStructure->SetVisAttributes(VisAtt_Structure);
 
-//    physiWfStructure = new G4PVPlacement(rotstr, G4ThreeVector(), "Windform" + std::to_string(nVol), logicWfStructure,
-//        physiWorld, false, cpN++, checkOverlaps);
+    physiWfStructure = new G4PVPlacement(rotstr, G4ThreeVector(), "Windform" + std::to_string(nVol), logicWfStructure,
+        physiWorld, false, nVol - 1, checkOverlaps);
   }
-*/
+
   //
   // ------------UP PIXEL------------
   //
   G4RotationMatrix *rot = new G4RotationMatrix();
-//  rot->rotateX(-90.0 * deg); // V2R7, V2R8, V2R9
-  rot->rotateX(-58.5 * deg); // V2, V2R1, V2R2, V2R4, V2R5, V2R6
+  rot->rotateX(-90.0 * deg); // V2R7, V2R8, V2R9
+//  rot->rotateX(-58.5 * deg); // V2, V2R1, V2R2, V2R4, V2R5, V2R6
 //  rot->rotateY(150 * deg); // V2R3
   G4ThreeVector *tran = new G4ThreeVector();
   //
@@ -392,8 +417,8 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
 
 //    G4cout << G4BestUnit(logicUpPixel->GetMass(), "Mass") << G4endl;
 
-//    physiUpPixel = new G4PVPlacement(rot, *tran, "UpPixel" + std::to_string(i), logicUpPixel, physiWorld, false, i,
-//        checkOverlaps);
+    physiUpPixel = new G4PVPlacement(rot, *tran, "UpPixel" + std::to_string(i), logicUpPixel, physiWorld, false, i,
+        checkOverlaps);
   }
 
   //
@@ -412,11 +437,18 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
     logicDownPixel = new G4LogicalVolume(downpix, dnPixelMaterial, "DownPixel" + std::to_string(i), 0, 0, 0);
     logicDownPixel->SetVisAttributes(VisAtt_Down);
 
-//    G4cout << G4BestUnit(logicDownPixel->GetMass(), "Mass") << G4endl;
+    //    G4cout << G4BestUnit(logicDownPixel->GetMass(), "Mass") << G4endl;
 
     physiDownPixel = new G4PVPlacement(rot, *tran, "DownPixel" + std::to_string(i), logicDownPixel, physiWorld, false,
-        i, checkOverlaps);
+        NbOfPixel + i, checkOverlaps); // Please NOTE the CopyNo!!!
   }
+
+//  downpix = new G4Sphere("DownPixel0", 5 * cm, 8 * cm, 0, 2 * pi, 0., pi / 2.);
+//  logicDownPixel = new G4LogicalVolume(downpix, dnPixelMaterial, "DownPixel0", 0, 0, 0);
+//  logicDownPixel->SetVisAttributes(VisAtt_Down);
+//
+//  physiDownPixel = new G4PVPlacement(0, *tran, "DownPixel0", logicDownPixel, physiWorld, false, NbOfPixel,
+//      checkOverlaps); // Please NOTE the CopyNo!!!
 
   //
   // ---------  Anticoincidence (ACD)  -------
@@ -433,13 +465,14 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
 
     logicACD = new G4LogicalVolume(solidACD, ACDMaterial, "ACD" + std::to_string(i), 0, 0, 0);
     logicACD->SetVisAttributes(VisAtt_ACD);
-//    physiACD = new G4PVPlacement(rot, *tran, "ACD" + std::to_string(i), logicACD, physiWorld, false, i, checkOverlaps);
+
+    physiACD = new G4PVPlacement(rot, *tran, "ACD" + std::to_string(i), logicACD, physiWorld, false, i, checkOverlaps);
   }
 
   // Bottom ACD
   G4Tubs *solidACD_Bottom = new G4Tubs("solidBottomACD", // name
       0. * cm,            // innerRadius
-      19.1 * cm, // outerRadius (V2:16.26; V2R1:16.26; V2R2:14.76; V2R3:17.6; V2R4:18.57; V2R5:21.2; V2R6:19.1; V2R789:16.7)
+      16.7 * cm, // outerRadius (V2:16.26; V2R1:16.26; V2R2:14.76; V2R3:17.6; V2R4:18.57; V2R5:21.2; V2R6:19.1; V2R789:16.7)
       0.5 * cm,           // half length
       0. * deg,           // starting Phi
       360. * deg          // segment angle
@@ -447,6 +480,7 @@ G4VPhysicalVolume* CrystalEyeDetectorConstructionV2::ConstructPayload() {
   G4LogicalVolume *logicACD_Bottom = new G4LogicalVolume(solidACD_Bottom, ACDMaterial,
       "ACD" + std::to_string(NbOfPixel), 0, 0, 0);
   logicACD_Bottom->SetVisAttributes(VisAtt_BottomACD);
+
   physiACD_Bottom = new G4PVPlacement(0, G4ThreeVector(0., 0., -0.5 * cm), "ACD" + std::to_string(NbOfPixel),
       logicACD_Bottom, physiWorld, false, NbOfPixel, checkOverlaps);
 
@@ -504,6 +538,7 @@ void CrystalEyeDetectorConstructionV2::ConstructSDandField() {
     SetSensitiveDetector("DownPixel" + std::to_string(i), calorimeterSD.Get());
     SetSensitiveDetector("UpPixel" + std::to_string(i), calorimeterSD.Get());
   }
+//  SetSensitiveDetector("DownPixel0", calorimeterSD.Get());
 
   // Create global magnetic field messenger.
   // Uniform magnetic field is then created automatically if

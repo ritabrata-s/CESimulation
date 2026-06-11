@@ -185,12 +185,11 @@ int main(int argc, char **argv) {
   //---  Construct the default run manager  ---
 //  auto *runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly); //SerialOnly
   auto *runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::Default);
-//  G4GDMLParser parser;
 
   // Set mandatory initialization classes
   //
-  runManager->SetUserInitialization(new CrystalEyeDetectorConstruction);
-//  runManager->SetUserInitialization(new CrystalEyeDetectorConstructionV2);
+//  runManager->SetUserInitialization(new CrystalEyeDetectorConstruction);
+  runManager->SetUserInitialization(new CrystalEyeDetectorConstructionV2);
 //  runManager->SetUserInitialization(new CrystalEyePrototypeConstruction);
 
   // For 176Lu intrinsic bkg simulation
@@ -236,8 +235,10 @@ int main(int argc, char **argv) {
     delete ui;
   }
 
+  // To write the detector geometry in a gdml file
+//  G4GDMLParser parser;
 //  parser.SetRegionExport(true);
-//  parser.Write("geometry.gdml",
+//  parser.Write("geometry-V2R8.gdml",
 //      G4TransportationManager::GetTransportationManager()->GetNavigatorForTracking()->GetWorldVolume()->GetLogicalVolume());
 
   delete visManager;

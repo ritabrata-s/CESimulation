@@ -104,6 +104,8 @@ private:
   G4Material *ACDMaterial = nullptr;
   G4Material *alStrMaterial = nullptr;
   G4Material *wfStrMaterial = nullptr;
+  G4Material *mWindF = nullptr;
+  G4Material *mTung = nullptr;
 
   G4double WorldSizeXY = 0.;
   G4double WorldSizeZ = 0.;

@@ -20,6 +20,7 @@
 #include "G4TessellatedSolid.hh"
 #include "G4Run.hh"
 #include "G4AutoDelete.hh"
+#include "G4UnitsTable.hh"
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 CrystalEyeRunAction::CrystalEyeRunAction() :
@@ -53,10 +54,12 @@ void CrystalEyeRunAction::BeginOfRunAction(const G4Run *aRun) {
 //    UI->ApplyCommand("/vis/scene/notifyHandlers");
 //  }
 
-//    auto phyVolStore = G4PhysicalVolumeStore::GetInstance();
-////    G4cout << phyVolStore->GetMap().size() << G4endl;
+    auto phyVolStore = G4PhysicalVolumeStore::GetInstance();
+//    G4cout << phyVolStore->GetMap().size() << G4endl;
 //    for (const auto& [key, value] : phyVolStore->GetMap())
 //      std::cout << key << " = " << (value[0]->GetLogicalVolume()->GetSolid())->GetExtent().GetExtentCentre() << "\n";
+//      std::cout << key << " = " << (value[0]->GetLogicalVolume()->GetSolid())->GetCubicVolume() << "\n";
+//      std::cout << key << " = " << G4BestUnit(value[0]->GetLogicalVolume()->GetMass(), "Mass") << "\n";
 
   } else
     G4cout << "### Run " << aRun->GetRunID() << " starts (worker)." << G4endl;

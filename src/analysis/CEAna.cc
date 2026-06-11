@@ -26,7 +26,8 @@ void usage() {
   cout << "                              (needed to be set for the tasks: EFFAREA, BKG_PHOT, BKG_NEUT, BKG_PROT,\n";
   cout << "                              BKG_ELEC, BKG_POSI, GRB)(default: 30_1E6_100)\n";
   cout << " -der, --depo-eng-rng STRING  deposition energy range and no. of bins [format: min_max_nbin]\n";
-  cout << "                              (needed to be set for all the tasks) (default: 30_1E5_100)\n";
+  cout << "                              (use nbin = RES for binning according to resolution;\n";
+  cout << "                              needed to be set for all the tasks) (default: 30_1E5_100)\n";
   cout << " -g, --geom SRING             geometry version of the detector [options: PIX1, PROTO, V1R0,\n";
   cout << "                              V2R0 ... V2R9](default: V1R0)\n";
   cout << " -tr, --trig SRING            trigger configuration for the detector [options: BT, TT](default: BT)\n";
@@ -59,9 +60,13 @@ static const TString programName = "[CEAna] ";
 void ExtractEngRange(char *str, char type) {
   if (type == 'p')
     sscanf(str, "%f_%f_%d", &minEPrim, &maxEPrim, &nBinPrim);
-  else if (type == 'd')
-    sscanf(str, "%f_%f_%d", &minEDepo, &maxEDepo, &nBinDepo);
-  else
+  else if (type == 'd') {
+    nBinDepo = 0;
+    if (std::strstr(str, "RES"))
+      sscanf(str, "%f_%f_RES", &minEDepo, &maxEDepo);
+    else
+      sscanf(str, "%f_%f_%d", &minEDepo, &maxEDepo, &nBinDepo);
+  } else
     cout << "[CEAna::ExtractEngRange] Not a valid type...!!!\n";
 }
 

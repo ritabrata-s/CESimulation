@@ -41,7 +41,7 @@ void DataCardUsage() {
   cout << "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
   cout << "Usage: CELoc data card format\n";
   cout << "Options:\n";
-  cout << " TASKNAME STRING              name of the task [options: POSI, UNCER] (default: not set)\n";
+  cout << " TASKNAME STRING              name of the task [options: POSI, UNCER, UNCERMS] (default: not set)\n";
   cout << " INPUTFILE FILE               input filename or data path (default: not set;)\n";
   cout << " OUTPUTFILE FILE              output filename (default: output.root)\n";
   cout << " PIXPOSFILE FILE              full path and name of the file containing\n";
@@ -268,7 +268,7 @@ int ReadDataCard(string datacard) {
 
 // ------------------------------------------------------------
 int CheckInputs() {
-  if (((strcmp(taskName.data(), "POSI") != 0) && (strcmp(taskName.data(), "UNCER") != 0))) {
+  if (((strcmp(taskName.data(), "POSI") != 0) && (strcmp(taskName.data(), "UNCER") != 0) && (strcmp(taskName.data(), "UNCERMS") != 0))) {
     cout << programName << "ERROR: Invalid task name!" << endl;
     return 1;
   }
@@ -293,7 +293,7 @@ int CheckInputs() {
     cout << programName << "ERROR: Provide a valid template data file!" << endl;
     return 1;
   }
-  if (!strcmp(taskName.c_str(), "UNCER"))
+  if (!strcmp(taskName.c_str(), "UNCER") || !strcmp(taskName.c_str(), "UNCERMS"))
     if (!strcmp(samPosInfoFile.c_str(), "")) {
       cout << programName << "ERROR: Provide a valid sample position information file!" << endl;
       return 1;
@@ -370,11 +370,49 @@ int main(int argc, char **argv) {
 
   // Single reconstruction
   if (!strcmp(taskName.c_str(), "POSI")) {
-    TVector3 vec = loc->CalcRecDirection(inputFile, outputFile);
+    auto sFile = new TFile(inputFile.data());
+    auto hPix = (TH1F*) sFile->Get("hNormEdepPix");
+    auto hCal = (TH1F*) sFile->Get("hNormEdepTotCal");
+
+//    TVector3 vec = loc->CalcRecDirection(inputFile, outputFile);
+    TVector3 vec = loc->CalcRecDirection(hPix, hCal);
     cout << "Centroid Theta/Phi from vector average = " << vec.Theta() * RadToDeg() << " deg " << vec.Phi() * RadToDeg()
         << " deg\n";
+
+    // Write probability distribution histogram and data
+    if (!outputFile.empty()) {
+      vector<pair<Float_t, TVector3> > vProb = loc->GetProbDist();
+      TH2F *hPos = nullptr;
+      TTree *tr = nullptr;
+      TFile *ofile = nullptr;
+      double br_th, br_ph, br_prb;
+      ofile = new TFile(outputFile.data(), "RECREATE");
+      //    hPos = new TH2F("hPos", ";Phi (deg); Theta (deg)", 120, 0, 360, 18, 0, 90);
+      hPos = new TH2F("hPos", ";Phi (deg); Theta (deg)", 360, 0, 360, 90, 0, 90);
+      tr = new TTree("tr", "probabability");
+      tr->Branch("ph", &br_ph, "ph/D");
+      tr->Branch("th", &br_th, "th/D");
+      tr->Branch("prb", &br_prb, "prb/D");
+
+      for (auto vtem : vProb) {
+        // Fill histo and tree
+        if (hPos) {
+          hPos->Fill(vtem.second.Phi() * RadToDeg(), vtem.second.Theta() * RadToDeg(), vtem.first);
+          br_ph = vtem.second.Phi() * RadToDeg();
+          br_th = vtem.second.Theta() * RadToDeg();
+          br_prb = vtem.first;
+          tr->Fill();
+        }
+      }
+
+      ofile->cd();
+      hPos->Write();
+      tr->Write();
+      ofile->Close();
+    }
+
   }
-  // Batch reconstruction
+  // Batch reconstruction (with average spectrum)
   else if (!strcmp(taskName.c_str(), "UNCER")) {
     loc->SetSamPosInfoFile(samPosInfoFile);
 
@@ -393,6 +431,27 @@ int main(int argc, char **argv) {
 
       //    if (v.first.Angle(v.second) * RadToDeg() < 0.1)
       //      cout << v.first.Angle(v.second) * RadToDeg() << " " << v.first.Theta() * RadToDeg() << " " << v.first.Phi() * RadToDeg() << endl;
+    }
+
+    // Write histograms
+    auto ofile = new TFile(outputFile.data(), "RECREATE");
+    ofile->cd();
+    hAngDev->Write();
+    hAngTh->Write();
+    ofile->Close();
+  }
+  // Batch reconstruction (with all GRB spectra)
+  else if (!strcmp(taskName.c_str(), "UNCERMS")) {
+    loc->SetSamPosInfoFile(samPosInfoFile);
+
+    vector<pair<TVector3, TVector3>> allVec = loc->MultiSpecRecDirection(inputFile);
+
+    auto *hAngDev = new TH1F("hAngDev", ";Angle (deg); Entries", 900, 0, 90);
+    auto *hAngTh = new TH2F("hAngTh", ";Theta (deg); Deviation (deg); Entries", 90, 0, 90, 900, 0, 90);
+
+    for (auto v : allVec) {
+      hAngDev->Fill(v.first.Angle(v.second) * RadToDeg());
+      hAngTh->Fill(v.first.Theta() * RadToDeg(), v.first.Angle(v.second) * RadToDeg());
     }
 
     // Write histograms

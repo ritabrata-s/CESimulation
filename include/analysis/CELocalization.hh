@@ -41,11 +41,17 @@ public:
   void SetBkgFile(TString fName);
 
   // Single reconstruction
-  TVector3 CalcRecDirection(TString fName, TString oFile = "");
+  TVector3 CalcRecDirection(TH1F *hSam, TH1F *hSamNormEdep);
+  const vector<pair<Float_t, TVector3> > GetProbDist() {
+    return fVProb;
+  }
 
-  // Batch reconstruction
+  // Batch reconstruction (with average spectrum)
   void SetSamPosInfoFile(TString fName);
   vector<pair<TVector3, TVector3>> MultiRecDirection(TString dPath);
+
+  // Batch reconstruction (with all spectra)
+  vector<pair<TVector3, TVector3>> MultiSpecRecDirection(TString dPath);
 
 private:
 //  TString fDataPath; // location of general detector information

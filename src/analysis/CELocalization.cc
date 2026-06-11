@@ -12,6 +12,8 @@
 
 #include "TSystem.h"
 #include "TROOT.h"
+#include "TF1.h"
+#include "TRandom3.h"
 
 //#include<sstream>
 //#include <bits/stdc++.h>
@@ -175,54 +177,28 @@ void CELocalization::SetBkgFile(TString fName) {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-TVector3 CELocalization::CalcRecDirection(TString fName, TString oFile) {
-  // Probability distribution histogram
-  TH2F *hPos = nullptr;
-  TTree *tr = nullptr;
-  TFile *ofile = nullptr;
-  double br_th, br_ph, br_prb;
-  if (!oFile.EqualTo("")) {
-    ofile = new TFile(oFile.Data(), "RECREATE");
-//    hPos = new TH2F("hPos", ";Phi (deg); Theta (deg)", 120, 0, 360, 18, 0, 90);
-    hPos = new TH2F("hPos", ";Phi (deg); Theta (deg)", 360, 0, 360, 90, 0, 90);
-    tr = new TTree("tr", "probabability");
-    tr->Branch("ph", &br_ph, "ph/D");
-    tr->Branch("th", &br_th, "th/D");
-    tr->Branch("prb", &br_prb, "prb/D");
-  }
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Sample data files
-  auto sFile = new TFile(fName);
-
-  // Get the normalized count rate in each pixel
-  auto hSam = (TH1F*) sFile->Get("hNormEdepPix");
-
-  // Get normalized flux spectrum of the whole detector
-  auto hSamNormEdep = (TH1F*) sFile->Get("hNormEdepTotCal");
-//  auto hFlat = (TH1F*) sFile->Get("hFlat");
-//  hSamNormEdep->Multiply(hFlat);
+TVector3 CELocalization::CalcRecDirection(TH1F *hSamPix, TH1F *hSamCal) {
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Subtract (if there is) background
 
   if (fHBkgTot)
-    hSamNormEdep->Add(fHBkgTot, -1);
+    hSamCal->Add(fHBkgTot, -1);
 
   gROOT->ProcessLine("gErrorIgnoreLevel = 2001;"); // to suppress warning message from Add
   if (fHBkgPix)
-    hSam->Add(fHBkgPix, -1);
+    hSamPix->Add(fHBkgPix, -1);
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Calculate provisional direction
 
-  Float_t sC = hSam->Integral();
+  Float_t sC = hSamPix->Integral();
 
   TVector3 vAvg = TVector3(0, 0, 0);
 
   Int_t ind = 1;
   for (auto v : fVPixPos) {
-    vAvg += ((hSam->GetBinContent(ind) / sC) * v);
+    vAvg += ((hSamPix->GetBinContent(ind) / sC) * v);
     ind++;
   }
 
@@ -234,18 +210,16 @@ TVector3 CELocalization::CalcRecDirection(TString fName, TString oFile) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Get effective area
   TString name;
-
   name.Form("hEffArea%d", (Int_t) cenTh);
-
   auto hEff = (TH1F*) fEffAreaFile->Get(name);
 
   // Get back the incident flux spectrum from the deposited
   // TODO: apply actual unfolding method
-  hSamNormEdep->Divide(hEff);
+  hSamCal->Divide(hEff);
 
   // Convert to per unit energy interval
-  for (int i = 1; i <= hSamNormEdep->GetNbinsX(); i++) {
-    hSamNormEdep->SetBinContent(i, hSamNormEdep->GetBinContent(i) / hSamNormEdep->GetBinWidth(i));
+  for (int i = 1; i <= hSamCal->GetNbinsX(); i++) {
+    hSamCal->SetBinContent(i, hSamCal->GetBinContent(i) / hSamCal->GetBinWidth(i));
   }
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -262,27 +236,18 @@ TVector3 CELocalization::CalcRecDirection(TString fName, TString oFile) {
     // Normalize pixel edep data with the calculated sample incident flux
     for (int i = 1; i <= hTemPix->GetNbinsX(); i++)
       for (int j = 1; j <= hTemPix->GetNbinsY(); j++) {
-        hTemPix->SetBinContent(i, j, hTemPix->GetBinContent(i, j) * hSamNormEdep->GetBinContent(j));
+        hTemPix->SetBinContent(i, j, hTemPix->GetBinContent(i, j) * hSamCal->GetBinContent(j));
       }
 
     // Get total normalized counts in each pixel
     auto hTem = (TH1F*) hTemPix->ProjectionX("hTem");
 
     // Reset similar error as the sample (for better KS comparison)
-    for (int i = 1; i <= hSam->GetNbinsX(); i++)
-      hTem->SetBinError(i, hSam->GetBinError(i));
+    for (int i = 1; i <= hSamPix->GetNbinsX(); i++)
+      hTem->SetBinError(i, hSamPix->GetBinError(i));
 
     // Calculate the probability
-    auto prob = hSam->KolmogorovTest(hTem);
-
-    // Fill histo
-    if (hPos) {
-      hPos->Fill(vtem.first.Phi() * RadToDeg(), vtem.first.Theta() * RadToDeg(), prob);
-      br_ph = vtem.first.Phi() * RadToDeg();
-      br_th = vtem.first.Theta() * RadToDeg();
-      br_prb = prob;
-      tr->Fill();
-    }
+    auto prob = hSamPix->KolmogorovTest(hTem);
 
 //    if (prob > 0.001) { // nominal cut over prob value
     fVProb.push_back(make_pair(prob, vtem.first));
@@ -314,17 +279,6 @@ TVector3 CELocalization::CalcRecDirection(TString fName, TString oFile) {
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  delete hSam;
-  delete hSamNormEdep;
-  delete sFile;
-
-  if (!oFile.EqualTo("")) {
-    ofile->cd();
-    hPos->Write();
-    tr->Write();
-    ofile->Close();
-  }
-
   return recVec;
 }
 
@@ -344,7 +298,126 @@ vector<pair<TVector3, TVector3>> CELocalization::MultiRecDirection(TString dPath
     TVector3 vOrg = TVector3(0, 0, 1);
     vOrg.SetMagThetaPhi(1, v.second.Theta(), v.second.Phi());
 
-    TVector3 vCal = CalcRecDirection(fName);
+    auto sFile = new TFile(fName);
+    auto hPix = (TH1F*) sFile->Get("hNormEdepPix");
+    auto hCal = (TH1F*) sFile->Get("hNormEdepTotCal");
+
+    TVector3 vCal = CalcRecDirection(hPix, hCal);
+    delete sFile;
+
+    vDirs.push_back(make_pair(vOrg, vCal));
+
+    ctr++;
+    if (!(ctr % 10))
+      cout << "Finished analyzing " << ctr << " files!" << endl;
+  }
+
+  return vDirs;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+vector<pair<TVector3, TVector3>> CELocalization::MultiSpecRecDirection(TString dPath) {
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // Get different spectra
+  TString dataPath = std::getenv("CRYSTALEYE_DATA");
+  dataPath += "Spec/";
+  TString dataFile = dataPath + "GRBCompParam.txt";
+
+  TTree *tGRB = new TTree("tGRB", "GRB param data from ascii file");
+  const Int_t nGRB = tGRB->ReadFile(dataFile, "x:y:z:a");
+
+  Float_t ampl, epeak, index;
+  tGRB->SetBranchAddress("x", &ampl);
+  tGRB->SetBranchAddress("y", &epeak);
+  tGRB->SetBranchAddress("z", &index);
+
+  TF1 *f1[nGRB];
+//  auto hFidu = new TProfile("hFidu", "Profile", hPeng->GetNbinsX(), hPeng->GetXaxis()->GetXbins()->GetArray(), "");
+
+  char name[20];
+  for (int i = 0; i < nGRB; i++) {
+    tGRB->GetEntry(i);
+
+    sprintf(name, "f1%d", i);
+    f1[i] = new TF1(name, "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e5);
+    f1[i]->SetParameter(0, ampl);
+    f1[i]->SetParameter(1, index);
+    f1[i]->SetParameter(2, epeak);
+
+//    for (int j = 1; j <= hPeng->GetNbinsX(); j++)
+//      hFidu->Fill(hPeng->GetBinCenter(j), f1[i]->Eval(hPeng->GetBinCenter(j)));
+  }
+
+  vector<pair<TVector3, TVector3>> vDirs;
+  Int_t ctr(0);
+  Float_t peng, totEdep;
+  vector<Int_t> *pixId = 0;
+  vector<Float_t> *pixEdep = 0;
+
+  for (auto v : fVSamPos) {
+    TString fName;
+    fName.Form("%s.root", v.first.Data());
+    if (!gSystem->FindFile(dPath, fName)) {
+      printf("[CELocalization::MultiRecDirection] Could not found sample file %s ..... \n\n", fName.Data());
+      continue;
+    }
+
+    TVector3 vOrg = TVector3(0, 0, 1);
+    vOrg.SetMagThetaPhi(1, v.second.Theta(), v.second.Phi());
+
+    // Choose a random GRB function
+    Int_t iGRB = gRandom->Uniform(nGRB - 1);
+//    cout << fName << "\tGRB no. " << iGRB << endl;
+
+    // Read source edep data
+    auto sFile = new TFile(fName);
+
+    auto hPix = (TH1F*) sFile->Get("hNormEdepPix");
+    auto hCal = (TH1F*) sFile->Get("hNormEdepTotCal");
+    auto hPeng = (TH1F*) sFile->Get("hPeng");
+    auto hNorm = (TH1F*) sFile->Get("hNorm");
+    auto tPix = (TTree*) sFile->Get("tEdepPix");
+
+    // Normalization of primary spectrum
+    auto hNormNew = (TH1F*) hNorm->Clone("hNormNew");
+    hNormNew->Reset();
+
+    Float_t srcRad = 18.0;
+    Float_t srcArea = 4. * srcRad * srcRad;  // cm2
+
+    for (Int_t i = 1; i <= hPeng->GetNbinsX(); i++) {
+      Float_t lEdge = hPeng->GetBinLowEdge(i);
+      Float_t uEdge = lEdge + hPeng->GetBinWidth(i);
+      Float_t norm = f1[iGRB]->Integral(lEdge, uEdge) * srcArea / hPeng->GetBinContent(i); // # s^-1
+      //    Float_t norm = hFidu->GetBinContent(i) * hPeng->GetBinWidth(i) * srcArea / hPeng->GetBinContent(i); // # s^-1
+      hNormNew->SetBinContent(i, norm);
+    }
+
+    // New normalized histograms
+    auto hPixNew = (TH1F*) hPix->Clone("hPixNew");
+    hPixNew->Reset();
+    auto hCalNew = (TH1F*) hCal->Clone("hCalNew");
+    hCalNew->Reset();
+
+    tPix->SetBranchAddress("peng", &peng);
+    tPix->SetBranchAddress("totEdep", &totEdep);
+    tPix->SetBranchAddress("pixID[px]", &pixId);
+    tPix->SetBranchAddress("pixEdep[px]", &pixEdep);
+
+    auto nEnt = tPix->GetEntriesFast();
+    for (auto i = 0; i < nEnt; i++) {
+      tPix->GetEntry(i);
+      hCalNew->Fill(totEdep, hNormNew->GetBinContent(hNormNew->FindBin(peng)));
+
+      for (int j = 0; j < pixId->size(); j++) {
+        hPixNew->Fill(pixId->at(j), (pixEdep->at(j) / totEdep) * hNormNew->GetBinContent(hNormNew->FindBin(peng)));
+      }
+      pixId->clear();
+      pixEdep->clear();
+    }
+
+    TVector3 vCal = CalcRecDirection(hPixNew, hCalNew);
+    delete sFile;
 
     vDirs.push_back(make_pair(vOrg, vCal));
 

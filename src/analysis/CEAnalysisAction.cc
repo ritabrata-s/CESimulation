@@ -11,6 +11,7 @@
 #include "analysis/CEAnalysisAction.hh"
 #include "TRandom.h"
 #include "TProfile.h"
+#include "TTree.h"
 
 #include<fstream>
 
@@ -105,10 +106,15 @@ void CEAnalysisAction::SetPrimEngBin(Int_t nB, Float_t minE, Float_t maxE) {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEAnalysisAction::SetDepEngBin(Int_t nB, Float_t minE, Float_t maxE) {
-  fDNBin = nB;
   fDMinE = minE;
   fDMaxE = maxE;
-  fDEngB = fPrimAna->LogEnergyBin(fDNBin, fDMinE, fDMaxE);
+  if (nB > 0) {
+    fDNBin = nB;
+    fDEngB = fPrimAna->LogEnergyBin(fDNBin, fDMinE, fDMaxE);
+  } else {
+    fDEngB = fPrimAna->ResoEnergyBin(fDMinE, fDMaxE);
+    fDNBin = fDEngB.size() - 1;
+  }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -682,8 +688,11 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
       h3PDengCalPixTrig->Fill(peng, edepCal[np], v);
       hEdepPix->Fill(v);
       h3PosCal->Fill(upCrPos[v].x(), upCrPos[v].y(), upCrPos[v].z());
-      h2NormEdepTotCalPix->Fill(v, totEdepCal, (edepCal[np] / totEdepCal) * hNorm->GetBinContent(hNorm->FindBin(peng)));
-      hNormEdepPix->Fill(v, (edepCal[np] / totEdepCal) * hNorm->GetBinContent(hNorm->FindBin(peng)));
+      if (totEdepCal > 0) {
+        h2NormEdepTotCalPix->Fill(v, totEdepCal,
+            (edepCal[np] / totEdepCal) * hNorm->GetBinContent(hNorm->FindBin(peng)));
+        hNormEdepPix->Fill(v, (edepCal[np] / totEdepCal) * hNorm->GetBinContent(hNorm->FindBin(peng)));
+      }
     }
 
     // Position analysis
@@ -791,6 +800,12 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
   TH1F *hNormEdepTotCalAnd = new TH1F("hNormEdepTotCalAnd", "; Energy (keV); Counts/s", fDNBin, &fDEngB[0]);
   TH1F *hMaxEdepPix = new TH1F("hMaxEdepPix", "; Pixel Id.; Entires", 2 * fNPIXEL, 0, 2 * fNPIXEL);
   TH1F *hNormEdepPix = new TH1F("hNormEdepPix", "; Pixel Id.; Entires", fNPIXEL, 0, fNPIXEL);
+
+  Float_t pixVal[fNPIXEL + 1];
+  for (Int_t i = 0; i <= fNPIXEL; i++)
+    pixVal[i] = i;
+  TH2F *h2NormEdepTotCalPix = new TH2F("hNormEdepTotCalPix", ";No. of Pixel; Energy (keV); Counts s^{-1}", fNPIXEL,
+      &pixVal[0], fDNBin, &fDEngB[0]);
 
   // No. of disintigration/s in the whole calo = 748774.21 /s
   // So simulation time for 10^6 events = 10^6 / 748774.21 s
@@ -908,7 +923,8 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
     hEdepCal->Fill(totEdepCal);
     hEdepCalTrig->Fill(totEdepCal);
 
-    hMaxEdepPix->Fill(pixVS[0]);
+    if (pixVS.size())
+      hMaxEdepPix->Fill(pixVS[0]);
 //    }
 
     if (!(i % 1000))
@@ -931,7 +947,7 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
   for (Int_t i = 0; i < vEvt.size() - 1; i++) {
     if (abs(vEvt[i].tim - vEvt[i + 1].tim) < fSigTW) { // check for coincidence
       nCoinc++;
-//      cout << i << "   coincidence\n";
+      //      cout << i << "   coincidence\n";
       int pi = 0;
       for (auto pe : vEvt[i].pixE) // loop on pixels
         vEvt[i].pixE[pi] += vEvt[i + 1].pixE[pi++];
@@ -958,16 +974,21 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
     }
 
     hNormEdepTotCal->Fill(tEdep, 1.E9 / simT);
+
     // Coincidence in multiple pixels
     if (np > 1)
       hNormEdepTotCalAnd->Fill(tEdep, 1.E9 / simT);
 
     np = 0;
     for (auto pe : evt.pixE) {
-      if (pe) {
+//      if (pe) {
+      if (tEdep > 0) {
+        //        auto v = pixCal[np];
+        //              v = (v >= fNPIXEL) ? botToUpMap[v - fNPIXEL] : v; // for bottom pixels, first convert Ids from 0--2NPIX;
         auto v = (np >= fNPIXEL) ? botToUpMap[np - fNPIXEL] : np; // for bottom pixels, first convert Ids from 0--2NPIX;
         // then find the corresponding up crystal Ids
         hNormEdepPix->Fill(v, (pe / tEdep) * (1.E9 / simT));
+        h2NormEdepTotCalPix->Fill(v, tEdep, (pe / tEdep) * (1.E9 / simT));
       }
       np++;
     }
@@ -991,6 +1012,7 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
   hNormEdepTotCalAnd->Write();
   hMaxEdepPix->Write();
   hNormEdepPix->Write();
+  h2NormEdepTotCalPix->Write();
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   return;
@@ -1266,16 +1288,33 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
   Float_t pixVal[fNPIXEL + 1];
   for (Int_t i = 0; i <= fNPIXEL; i++)
     pixVal[i] = i;
-  auto hNormEdepPix = new TH1F("hNormEdepPix", "; Pixel Id.; Entires", fNPIXEL, &pixVal[0]);
-  auto hNormEdepPixF = new TH1F("hNormEdepPixF", "; Pixel Id.; Entires", fNPIXEL, &pixVal[0]);
-  auto hNormEdepPixG = new TH1F("hNormEdepPixG", "; Pixel Id.; Entires", fNPIXEL, &pixVal[0]);
-  auto hNormEdepPixB = new TH1F("hNormEdepPixB", "; Pixel Id.; Entires", fNPIXEL, &pixVal[0]);
-  auto hNormEdepPixU = new TH1F("hNormEdepPixU", "; Pixel Id.; Entires", fNPIXEL, &pixVal[0]);
-  auto hEdepPix = new TH2F("hEdepPix", "; Pixel Id.; Energy (keV); Entires", fNPIXEL, &pixVal[0], fPNBin, &fPEngB[0]);
+  auto hNormEdepPix = new TH1F("hNormEdepPix", "; Pixel ID; Entires", fNPIXEL, &pixVal[0]);
+  auto hNormEdepPixF = new TH1F("hNormEdepPixF", "; Pixel ID; Entires", fNPIXEL, &pixVal[0]);
+  auto hNormEdepPixG = new TH1F("hNormEdepPixG", "; Pixel ID; Entires", fNPIXEL, &pixVal[0]);
+  auto hNormEdepPixB = new TH1F("hNormEdepPixB", "; Pixel ID; Entires", fNPIXEL, &pixVal[0]);
+  auto hNormEdepPixU = new TH1F("hNormEdepPixU", "; Pixel ID; Entires", fNPIXEL, &pixVal[0]);
+  auto hEdepPix = new TH2F("hEdepPix", "; Pixel ID; Energy (keV); Entires", fNPIXEL, &pixVal[0], fPNBin, &fPEngB[0]);
+
+  // Output tree containing peng, totEdepCal, pixId[px], and edepCal[px]
+  auto tEdepPix = new TTree("tEdepPix", "Pixel energy deposition");
+  Float_t bPeng, bTotedep;
+  vector<Float_t> bPixedep;
+  vector<Int_t> bPixid;
+  vector<Int_t> bPixlyr;
+  vector<Float_t> bAcdedep;
+  vector<Int_t> bAcdid;
+  tEdepPix->Branch("peng", &bPeng, "peng/F");
+  tEdepPix->Branch("totEdep", &bTotedep, "totEdep/F");
+  tEdepPix->Branch("pixEdep[px]", &bPixedep);
+  tEdepPix->Branch("pixID[px]", &bPixid);
+  tEdepPix->Branch("pixLyr[px]", &bPixlyr);
+  tEdepPix->Branch("acdEdep[px]", &bAcdedep);
+  tEdepPix->Branch("acdID[px]", &bAcdid);
 
   // Get the up to bottom crystal mapping
 //  Int_t *upBotMap = fCalAna->UpToBotCrystalMap();
   auto botToUpMap = fCalAna->UpToBotCrystalMap(1);
+  auto acdToUpMap = fAcdAna->UpCrystalToAcdMap(1);
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Calculate the fiducial GRB
@@ -1298,7 +1337,7 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
     tGRB->GetEntry(i);
 
     sprintf(name, "f1%d", i);
-    f1[i] = new TF1(name, "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e5);
+    f1[i] = new TF1(name, "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e6);
     f1[i]->SetParameter(0, ampl);
     f1[i]->SetParameter(1, index);
     f1[i]->SetParameter(2, epeak);
@@ -1315,14 +1354,14 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // The good spectrum
-  auto fG = new TF1("fG", "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e5);
+  auto fG = new TF1("fG", "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e6);
   fG->SetParameter(0, 1.6078);
   fG->SetParameter(1, -0.51);
   fG->SetParameter(2, 805.5);
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // The bad spectrum
-  auto fB = new TF1("fB", "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e5);
+  auto fB = new TF1("fB", "[0]*((x/100)**[1])*exp(-([1]+2)*x/[2])", 30.0, 1.0e6);
   fB->SetParameter(0, 0.4358);
   fB->SetParameter(1, 0.40);
   fB->SetParameter(2, 31.6);
@@ -1406,21 +1445,29 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
         continue;
 
     Float_t peng = fPrimAna->GetEnergy(i);
+    bPeng = peng;
 
     Float_t eCalUp(0.), eCalBot(0.);
     Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
+    bTotedep = totEdepCal;
 
     Float_t eAcdUp(0.), eAcdBot(0.);
     Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
-
-//    if (totEdepCal > 1e3)
-//      continue;
 
     h2PDengCalTrig->Fill(peng, totEdepCal);
     hEdepCal->Fill(totEdepCal);
 
     vector<Float_t> edepCal;
     vector<Int_t> pixCal;
+    vector<Float_t> edepAcd;
+    vector<Int_t> pixAcd;
+    edepCal.clear();
+    pixCal.clear();
+    bPixedep.clear();
+    bPixid.clear();
+    bPixlyr.clear();
+    edepAcd.clear();
+    pixAcd.clear();
     fCalAna->GetSortedEdeps(i, edepCal, pixCal);
 
     hNormEdepTotCal->Fill(totEdepCal, hNorm->GetBinContent(hNorm->FindBin(peng))); // normalized calo edep spectrum (cnt/s)
@@ -1436,8 +1483,9 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
 
     for (int np = 0; np < pixCal.size(); np++) {
       auto v = pixCal[np];
+      bPixlyr.push_back((v >= fNPIXEL) ? 1 : 0); // for bottom pixels, first convert Ids from 0--2NPIX;
       v = (v >= fNPIXEL) ? botToUpMap[v - fNPIXEL] : v; // for bottom pixels, first convert Ids from 0--2NPIX;
-      // then find the corresponding up crystal Ids
+      pixCal[np] = v; // then find the corresponding up crystal Ids
 
       hNormEdepPix->Fill(v, (edepCal[np] / totEdepCal) * hNorm->GetBinContent(hNorm->FindBin(peng)));
       hNormEdepPixF->Fill(v,
@@ -1448,7 +1496,27 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
       hNormEdepPixU->Fill(v, (edepCal[np] / totEdepCal) * hNormU->GetBinContent(hNormU->FindBin(peng)));
 
       hEdepPix->Fill(v, peng, (edepCal[np] / totEdepCal) * hNormF->GetBinContent(hNormF->FindBin(peng)));
+//      h3PDengPixTrig->Fill(peng, (edepCal[np] / totEdepCal), v);
     }
+
+    edepAcd = fAcdAna->GetEdeps(i);
+    pixAcd = fAcdAna->GetPixelIds(i);
+    for (int np = 0; np < pixAcd.size(); np++) {
+      auto v = pixAcd[np];
+      if (v >= fNPIXEL) {
+        edepAcd.erase(edepAcd.begin() + np);
+        pixAcd.erase(pixAcd.begin() + np);
+        continue;
+      }
+
+      pixAcd[np] = acdToUpMap[v - fNPIXEL]; // for bottom pixels, first convert Ids from 0--2NPIX;
+    }
+
+    bPixedep = edepCal;
+    bPixid = pixCal;
+    bAcdedep = edepAcd;
+    bAcdid = pixAcd;
+    tEdepPix->Fill();
 
     if (!(i % 1000))
       cout << "Analysis of event no. " << i << " complete!\n";
@@ -1467,11 +1535,12 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
   hFidu->Write();
   hFlat->Write();
   hPeng->Write();
+  hNorm->Write();
 //  fG->Write();
 //  fB->Write();
 //  fU->Write();
 //  hNormPeng->Write();
-//  h2PDengCalTrig->Write();
+  h2PDengCalTrig->Write();
 //  hEdepCal->Write();
   hNormEdepCal->Write();
   hNormEdepTotCal->Write();
@@ -1485,6 +1554,8 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
 //  hNormEdepPixB->Write();
 //  hNormEdepPixU->Write();
   hEdepPix->Write();
+//  h3PDengPixTrig->Write();
+  tEdepPix->Write();
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   return;

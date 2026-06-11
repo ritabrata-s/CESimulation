@@ -54,10 +54,16 @@ public:
   TVector3 BotAcdPos();
   // Get the array[NPIXEL] of bottom crystal Ids. corresponding to up Ids (or vice versa for flag = 1)
   Int_t* UpToBotCrystalMap(bool botPix = false);
+  // Get the array[NPIXEL] of ACD Ids. corresponding to up Ids (or vice versa for flag = 1)
+  Int_t* UpCrystalToAcdMap(bool acdPix = false);
   // Get vector array of near by crystal Ids [ranging 0--(2*NPIXEL-1)] given a particular crystal (Id)
   vector<Int_t> NearbyCrystals(Int_t pid);
 
+  // Get energy bins equal in log scale
   vector<Float_t> LogEnergyBin(Int_t nBins, Float_t minE, Float_t maxE);
+  // Get energy bins according to detector resolution
+  vector<Float_t> ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins = 5, Float_t par0 = 7.003,
+      Float_t par1 = 7.361);
 
   Int_t GetNEntries() {
     return fNEntries;
@@ -125,6 +131,7 @@ protected:
   vector<TVector3> fUpAcdPos;
   TVector3 fBotAcdPos;
   vector<Int_t> fUpToBotCrystMap;
+  vector<Int_t> fUpCrystToAcdMap;
 
   TTree *fTree = nullptr;
   Int_t fEntId = -1;

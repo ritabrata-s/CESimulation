@@ -25,7 +25,7 @@ void CEAcdAnalysis::Init() {
   fTree = fStreamer->GetAcdTree();
 
   fNEntries = (Int_t) fTree->GetEntries();
-  cout << "No. of entries = " << fNEntries << endl;
+//  cout << "No. of entries = " << fNEntries << endl;
 
   if (!fTree) {
     printf("[CEAcdAnalysis::Init] Tree object for this analysis... \n");
@@ -135,7 +135,6 @@ Bool_t CEAcdAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
   default:
     cout << "[CEAcdAnalysis::IsTriggerOK] Trigger condition type does not match! (valid type: 1, 2, 3)" << endl;
     exit(1);
-    ;
 
   }
 

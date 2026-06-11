@@ -260,8 +260,10 @@ void CrystalEyePrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent) {
     G4ThreeVector point;
     G4int maxtries = 100000, itry = 1;
 
-    G4double xylo = -dVertexRadius; //all
-    G4double xyhi = dVertexRadius; //all
+    G4double xlo = -dVertexRadius; //all
+    G4double xhi = dVertexRadius; //all
+    G4double ylo = -dVertexRadius; //all
+    G4double yhi = dVertexRadius; //all
 //    G4double xylo = -5*cm;// prototype
 //    G4double xyhi = 5*cm;// prototype
 //    G4double zlo = 0.0 * cm;
@@ -270,7 +272,7 @@ void CrystalEyePrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent) {
 
     G4bool inCrystal = false;
     do {
-      point.set(xylo + G4UniformRand() * (xyhi - xylo), xylo + G4UniformRand() * (xyhi - xylo),
+      point.set(xlo + G4UniformRand() * (xhi - xlo), ylo + G4UniformRand() * (yhi - ylo),
           zlo + G4UniformRand() * (zhi - zlo));
 
       for (int i = 0; i < nbPix; i++) {

@@ -25,7 +25,7 @@ void CECalAnalysis::Init() {
   fTree = fStreamer->GetCalTree();
 
   fNEntries = (Int_t) fTree->GetEntries();
-  cout << "No. of entries = " << fNEntries << endl;
+//  cout << "No. of entries = " << fNEntries << endl;
 
   if (!fTree) {
     printf("[CECalAnalysis::Init] Tree object for this analysis... \n");
@@ -82,8 +82,8 @@ void CECalAnalysis::FCheckEvent() {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 Int_t CECalAnalysis::GetNHits(Int_t ent) {
+  FGetEntry(ent);
   if (ent != fEntId) {
-    FGetEntry(ent);
     FCheckEvent();
   }
 
@@ -92,8 +92,8 @@ Int_t CECalAnalysis::GetNHits(Int_t ent) {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<Int_t> CECalAnalysis::GetPixelIds(Int_t ent) {
+  FGetEntry(ent);
   if (ent != fEntId) {
-    FGetEntry(ent);
     FCheckEvent();
   }
 
@@ -102,8 +102,8 @@ vector<Int_t> CECalAnalysis::GetPixelIds(Int_t ent) {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<Float_t> CECalAnalysis::GetEdeps(Int_t ent) {
+  FGetEntry(ent);
   if (ent != fEntId) {
-    FGetEntry(ent);
     FCheckEvent();
   }
 
@@ -121,8 +121,8 @@ vector<Float_t> CECalAnalysis::GetEdeps(Int_t ent) {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<TVector3> CECalAnalysis::GetEdepPos(Int_t ent) {
+  FGetEntry(ent);
   if (ent != fEntId) {
-    FGetEntry(ent);
     FCheckEvent();
   }
 
@@ -136,8 +136,8 @@ vector<TVector3> CECalAnalysis::GetEdepPos(Int_t ent) {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<Float_t> CECalAnalysis::GetEdepTimes(Int_t ent) {
+  FGetEntry(ent);
   if (ent != fEntId) {
-    FGetEntry(ent);
     FCheckEvent();
   }
 

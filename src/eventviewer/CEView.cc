@@ -26,6 +26,7 @@ void Usage() {
   cout << "Usage: ./CEView -f filename [options]" << endl;
   cout << "Options:\n";
   cout << " -f, --file NAME            name of the file to be analysed. \n";
+  cout << " -g, --geom NAME            detector geometry version. [Options: V1R0, V2R8; (default: V1R0)]\n";
   cout << " -dl, --detector-list       detectors to include(+). e.g., +CAL (default: +ACD+CAL). \n";
   cout << " -v, --verbose              verbose level [default: 0]. \n";
   cout << " -h, --help                 print this help. \n";
@@ -35,6 +36,7 @@ void Usage() {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Define globals
 char *fileName = (char*) ".root";
+char *geom = (char*) "V1R0";
 char *detectorFlag = (char*) "+ACD+CAL";
 Int_t verbose = 0;
 TString progName = "CEView";
@@ -68,6 +70,14 @@ int HandleInputPar(int argc, char **argv) {
           throw -1;
         fileName = argv[i];
         cout << "[" << progName << "::HandleInputPar] Input file name: " << fileName << endl;
+        continue;
+      }
+      // -----------------------------------------------------//
+      else if (!strcmp(argv[i], "-g") || !strcmp(argv[i], "--geom")) {
+        if (++i >= argc)
+          throw -1;
+        geom = argv[i];
+        cout << "[" << progName << "::HandleInputPar] Detector geometry version: " << geom << endl;
         continue;
       }
       // -----------------------------------------------------//
@@ -113,7 +123,7 @@ int main(int argc, char **argv) {
   TApplication theApp("CEEventViewer", &argc, argv);
 
   // The event viewer
-  CEEventViewer *eview = new CEEventViewer(fileName);
+  CEEventViewer *eview = new CEEventViewer(fileName, geom);
   eview->SetDetectors(detectorFlag);
 
   // Start the viewer

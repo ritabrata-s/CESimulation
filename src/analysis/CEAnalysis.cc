@@ -12,6 +12,7 @@
 
 #include<fstream>
 #include<sstream>
+#include<TF1.h>
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 CEAnalysis::CEAnalysis() {
@@ -189,6 +190,38 @@ Int_t* CEAnalysis::UpToBotCrystalMap(bool botPix) {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+Int_t* CEAnalysis::UpCrystalToAcdMap(bool botPix) {
+  TString filename = fDataPath + "upCrystalToAcdMap-" + fGeomVer + ".txt";
+//  TString filename = fDataPath + "upToBotCrystalMap.txt";
+  fstream mapfile(filename.Data());
+  if (!mapfile.is_open()) {
+    cout << "[CEAnalysis::UpCrystalToAcdMap] Input file for the pixel id mapping " << filename
+        << " could not be opened!\n";
+    exit(1);
+  }
+
+  Int_t pid;
+
+  vector<pair<Int_t, Int_t>> map;
+  fUpCrystToAcdMap.resize(fNPIXEL);
+
+  while (1) {
+    mapfile >> pid >> fUpCrystToAcdMap[pid];
+    if (mapfile.eof())
+      break;
+    map.push_back(make_pair(fUpCrystToAcdMap[pid], pid));
+  }
+
+  if (botPix) {
+    sort(map.begin(), map.end());
+    for (int i = 0; i < fNPIXEL; i++)
+      fUpCrystToAcdMap[i] = map[i].second;
+  }
+
+  return &fUpCrystToAcdMap[0];
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<Int_t> CEAnalysis::NearbyCrystals(Int_t pid) {
   vector<Int_t> nears;
   bool botPix(0);
@@ -254,11 +287,31 @@ vector<Int_t> CEAnalysis::NearbyCrystals(Int_t pid) {
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 vector<Float_t> CEAnalysis::LogEnergyBin(Int_t nBins, Float_t minE, Float_t maxE) {
   vector<Float_t> engB;
+
   Float_t minEng = log10(minE); // minimum energy keV
   Float_t maxEng = log10(maxE); // maximum energy keV
   Float_t bw = (maxEng - minEng) / nBins;
   for (int ii = 0; ii <= nBins; ii++)
     engB.push_back(pow(10., minEng + ii * bw));
+
+  return engB;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+vector<Float_t> CEAnalysis::ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins, Float_t par0, Float_t par1) {
+  vector<Float_t> engB;
+  auto fRes = new TF1("fRes", "sqrt([0]*[0]/sqrt(x/1E3) + [1]*[1])", minE, maxE);
+  fRes->SetParameter(0, par0);
+  fRes->SetParameter(1, par1);
+
+  engB.push_back(minE);
+  do {
+    auto eng = engB.back();
+    auto dE = fRes->Eval(eng) * eng / 100.;
+    engB.push_back(eng + dE / nBins);
+  } while (engB.back() < maxE);
+
+  engB.back() = maxE;
 
   return engB;
 }

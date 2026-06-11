@@ -245,7 +245,7 @@ void CrystalEyeDetectorConstruction::DefineMaterials() {
   defaultMaterial = vacuum;
   ACDMaterial = Sci;
   upPixelMaterial = gagg; //lyso; //
-  dnPixelMaterial = gagg;
+  dnPixelMaterial = lyso; // gagg;
   structureMaterial = Al;
   shieldMaterial1 = mCu;
   shieldMaterial2 = mW;
