@@ -24,18 +24,31 @@ public:
 
   void Init();
 
-  vector<Int_t> GetPixelIds(Int_t ent);
-  vector<Float_t> GetEdeps(Int_t ent);
-  Float_t GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot);
+  void BeginOfEvent(Int_t evt);
+  void EndOfEvent(Int_t evt);
 
-  Bool_t IsTriggerOK(Int_t ent, Int_t nTC);
+  vector<Int_t> GetPixelIds() {
+    return *fPixId;
+  }
+
+  vector<Float_t> GetEdeps() {
+    return fSmearedEdep;
+  }
+
+  Float_t GetTotalEdep(Float_t &eUp, Float_t &eBot);
+
+  Bool_t IsTriggerOK(Int_t nTC);
 
 private:
   void FCheckEvent();
+  void FClearEvent();
 
+  Int_t fCurEvt = -1;
+  Int_t fEvtId = -1;
   Int_t fNHits = 0;
   vector<Int_t> *fPixId = 0;
   vector<Float_t> *fEdep = 0;
+  vector<Float_t> fSmearedEdep;
 };
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....

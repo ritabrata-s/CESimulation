@@ -26,9 +26,21 @@ public:
 
   void Init();
 
-  Float_t GetEnergy(Int_t ent);
-  TVector3 GetVertexPos(Int_t ent);
-  TVector3 GetDirection(Int_t ent);
+  void BeginOfEvent(Int_t evt);
+  void EndOfEvent(Int_t evt);
+
+  Float_t GetEnergy() {
+    return fPEng * 1000.; // in keV
+  }
+
+  TVector3 GetVertexPos() {
+    return fPosVec = TVector3(fPosX, fPosY, fPosZ);
+  }
+
+  TVector3 GetDirection() {
+    return fDirVec = TVector3(fDirX, fDirY, fDirZ);
+  }
+
   TF1* GetPrimarySpec(TString type, Int_t dir, Float_t minE, Float_t maxE);
   TF1* GetGRBSpec(Float_t minE, Float_t maxE);
 
@@ -42,10 +54,15 @@ public:
   Double_t FGRB(Double_t *x, Double_t *p);
 
 private:
+  void FClearEvent();
+
+  Int_t fCurEvt = -1;
+
   Float_t fPEng = 0.;
   Float_t fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ;
   TVector3 fPosVec;
   TVector3 fDirVec;
+
   TString fDataPath;
   TF1 *fPSpec = nullptr;
   TGraph *fGSpec[7];

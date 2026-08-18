@@ -323,9 +323,11 @@ void CEEventViewer::FLoadEvent() {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEEventViewer::FPrimEvent() {
-  fPrimPos = fPrimAna->GetVertexPos(fEvtId); // in mm
-  fPrimDir = fPrimAna->GetDirection(fEvtId);
-  fPrimEng = fPrimAna->GetEnergy(fEvtId);
+  fPrimAna->BeginOfEvent(fEvtId);
+  fPrimPos = fPrimAna->GetVertexPos(); // in mm
+  fPrimDir = fPrimAna->GetDirection();
+  fPrimEng = fPrimAna->GetEnergy();
+  fPrimAna->EndOfEvent(fEvtId);
 
   TVector3 v1 = TVector3(fPrimPos.x() / 10., fPrimPos.y() / 10., fPrimPos.z() / 10.); // in cm
   TVector3 v2 = fPrimDir;
@@ -353,12 +355,15 @@ void CEEventViewer::FPrimEvent() {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEEventViewer::FCalEvent() {
-  Int_t nHitsCal = fCalAna->GetNHits(fEvtId);
+  fCalAna->BeginOfEvent(fEvtId);
+
+  Int_t nHitsCal = fCalAna->GetNHits();
   vector<Float_t> edepCal;
   vector<Int_t> pixCal;
   edepCal.clear();
   pixCal.clear();
-  fCalAna->GetSortedEdeps(fEvtId, edepCal, pixCal);
+  fCalAna->GetSortedEdeps(edepCal, pixCal);
+  fCalAna->EndOfEvent(fEvtId);
 
   char volname[100];
   char edepname[100];
@@ -397,12 +402,15 @@ void CEEventViewer::FCalEvent() {
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CEEventViewer::FAcdEvent() {
+  fAcdAna->BeginOfEvent(fEvtId);
   Float_t eAcdUp(0.), eAcdBot(0.);
-  Float_t totEdepAcd = fAcdAna->GetTotalEdep(fEvtId, eAcdUp, eAcdBot);
+  Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
 
-  vector<Float_t> edepAcd = fAcdAna->GetEdeps(fEvtId);
-  vector<Int_t> pixAcd = fAcdAna->GetPixelIds(fEvtId);
+  vector<Float_t> edepAcd = fAcdAna->GetEdeps();
+  vector<Int_t> pixAcd = fAcdAna->GetPixelIds();
   Int_t nHitsAcd = pixAcd.size();
+
+  fAcdAna->EndOfEvent(fEvtId);
 
   //  vector < Float_t > vE = edepAcd;
   //  sort(vE.begin(), vE.end(), greater<Float_t>());
@@ -477,14 +485,19 @@ void CEEventViewer::FLabel() {
   Double_t prPh = fPrimDir.Phi() * TMath::RadToDeg();
 
   // Get calorimeter total energy deposition
+  fCalAna->BeginOfEvent(fEvtId);
+  fAcdAna->BeginOfEvent(fEvtId);
+
   Float_t eCalUp(0.), eCalBot(0.);
-  Float_t totEdepCal = fCalAna->GetTotalEdep(fEvtId, eCalUp, eCalBot);
-  Int_t nHitsCal = fCalAna->GetNHits(fEvtId);
+  Float_t totEdepCal = fCalAna->GetTotalEdep(eCalUp, eCalBot);
+  Int_t nHitsCal = fCalAna->GetNHits();
 
   // Get ACD total energy deposition
   Float_t eAcdUp(0.), eAcdBot(0.);
-  Float_t totEdepAcd = fAcdAna->GetTotalEdep(fEvtId, eAcdUp, eAcdBot);
-  Int_t nHitsAcd = (fAcdAna->GetPixelIds(fEvtId)).size();
+  Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
+  Int_t nHitsAcd = (fAcdAna->GetPixelIds()).size();
+  fCalAna->EndOfEvent(fEvtId);
+  fAcdAna->EndOfEvent(fEvtId);
 
 //  cout << fEvtId << "\t" << fPrimEng << "\t" << nHitsCal << "\t" << totEdepCal << "\t" << totEdepAcd << endl;
 

@@ -16,6 +16,9 @@ CEPrimAnalysis::CEPrimAnalysis() :
   fDataPath = std::getenv("CRYSTALEYE_DATA");
   fDataPath += "Spec/";
 
+  fPosVec.Clear();
+  fDirVec.Clear();
+
   TString dataFile = fDataPath + "cosmicPhoton.txt";
   fGSpec[0] = new TGraph(dataFile.Data());
   dataFile = fDataPath + "albedoPhoton.txt";
@@ -30,7 +33,6 @@ CEPrimAnalysis::CEPrimAnalysis() :
   fGSpec[5] = new TGraph(dataFile.Data());
   dataFile = fDataPath + "secondPositron.txt";
   fGSpec[6] = new TGraph(dataFile.Data());
-
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -66,28 +68,58 @@ void CEPrimAnalysis::Init() {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Float_t CEPrimAnalysis::GetEnergy(Int_t ent) {
-  if (ent != fEntId)
-    FGetEntry(ent);
+void CEPrimAnalysis::BeginOfEvent(Int_t evt) {
+  if (fCurEvt == evt) {
+    printf("[CECalAnalysis::BeginOfEvent] Already initialized this event (Id = %d)... \n", evt);
+    return;
+  }
 
-  return fPEng * 1000.; // in keV
+  fCurEvt = evt;
+
+  FClearEvent();
+  FGetEntry(evt);
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-TVector3 CEPrimAnalysis::GetVertexPos(Int_t ent) {
-  if (ent != fEntId)
-    FGetEntry(ent);
+void CEPrimAnalysis::EndOfEvent(Int_t evt) {
+  FClearEvent();
 
-  return fPosVec = TVector3(fPosX, fPosY, fPosZ);
+  fCurEvt = -1;
+  fPosVec.Clear();
+  fDirVec.Clear();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-TVector3 CEPrimAnalysis::GetDirection(Int_t ent) {
-  if (ent != fEntId)
-    FGetEntry(ent);
-
-  return fDirVec = TVector3(fDirX, fDirY, fDirZ);
+void CEPrimAnalysis::FClearEvent() {
+  fEvtId = -1;
+  fPEng = 0;
+  fPosX = fPosY = fPosZ = 0.;
+  fDirX = fDirY = fDirZ = 0.;
 }
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+//Float_t CEPrimAnalysis::GetEnergy(Int_t ent) {
+//  if (ent != fEntId)
+//    FGetEntry(ent);
+//
+//  return fPEng * 1000.; // in keV
+//}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+//TVector3 CEPrimAnalysis::GetVertexPos(Int_t ent) {
+//  if (ent != fEntId)
+//    FGetEntry(ent);
+//
+//  return fPosVec = TVector3(fPosX, fPosY, fPosZ);
+//}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+//TVector3 CEPrimAnalysis::GetDirection(Int_t ent) {
+//  if (ent != fEntId)
+//    FGetEntry(ent);
+//
+//  return fDirVec = TVector3(fDirX, fDirY, fDirZ);
+//}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 Double_t CEPrimAnalysis::FCosmicPhoton(Double_t *x, Double_t *p) {

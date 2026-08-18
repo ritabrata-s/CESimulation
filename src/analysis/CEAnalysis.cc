@@ -298,16 +298,24 @@ vector<Float_t> CEAnalysis::LogEnergyBin(Int_t nBins, Float_t minE, Float_t maxE
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Float_t> CEAnalysis::ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins, Float_t par0, Float_t par1) {
+void CEAnalysis::SetEngResFunction(Float_t minE, Float_t maxE, Float_t *par, Int_t flag) {
+  fResFunc = new TF1("fResFunc", "sqrt([0]*[0]/sqrt(x/1E3) + [1]*[1])", minE, maxE);
+  fResFunc->SetParameter(0, par[0]);
+  fResFunc->SetParameter(1, par[1]);
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+//vector<Float_t> CEAnalysis::ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins, Float_t par0, Float_t par1) {
+vector<Float_t> CEAnalysis::ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins) {
   vector<Float_t> engB;
-  auto fRes = new TF1("fRes", "sqrt([0]*[0]/sqrt(x/1E3) + [1]*[1])", minE, maxE);
-  fRes->SetParameter(0, par0);
-  fRes->SetParameter(1, par1);
+//  auto fRes = new TF1("fRes", "sqrt([0]*[0]/sqrt(x/1E3) + [1]*[1])", minE, maxE);
+//  fRes->SetParameter(0, par0);
+//  fRes->SetParameter(1, par1);
 
   engB.push_back(minE);
   do {
     auto eng = engB.back();
-    auto dE = fRes->Eval(eng) * eng / 100.;
+    auto dE = fResFunc->Eval(eng) * eng / 100.;
     engB.push_back(eng + dE / nBins);
   } while (engB.back() < maxE);
 
@@ -335,6 +343,23 @@ Int_t CEAnalysis::GetEvtId(Int_t ent) {
     FGetEntry(ent);
 
   return fEvtId;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CEAnalysis::PrintProgress(Float_t percentage) {
+  // Source - https://stackoverflow.com/a/36315819
+  // Posted by razz, modified by community. See post 'Timeline' for change history
+  // Retrieved 2026-08-13, License - CC BY-SA 4.0
+
+#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
+#define PBWIDTH 60
+
+  int val = (int) (percentage * 100);
+  int lpad = (int) (percentage * PBWIDTH);
+  int rpad = PBWIDTH - lpad;
+  printf("\r%3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+  fflush(stdout);
+
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....

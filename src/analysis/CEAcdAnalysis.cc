@@ -12,6 +12,7 @@
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 CEAcdAnalysis::CEAcdAnalysis() {
+  fSmearedEdep.clear();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -25,7 +26,6 @@ void CEAcdAnalysis::Init() {
   fTree = fStreamer->GetAcdTree();
 
   fNEntries = (Int_t) fTree->GetEntries();
-//  cout << "No. of entries = " << fNEntries << endl;
 
   if (!fTree) {
     printf("[CEAcdAnalysis::Init] Tree object for this analysis... \n");
@@ -36,6 +36,50 @@ void CEAcdAnalysis::Init() {
   fTree->SetBranchAddress("nHits_ACD", &fNHits);
   fTree->SetBranchAddress("PixelID_ACD[nHits]", &fPixId);
   fTree->SetBranchAddress("Edep_ACD[nHits]", &fEdep);
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CEAcdAnalysis::BeginOfEvent(Int_t evt) {
+  if (fCurEvt == evt) {
+    printf("[CEAcdAnalysis::BeginOfEvent] Already initialized this event (Id = %d)... \n", evt);
+    return;
+  }
+
+  fCurEvt = evt;
+
+  FClearEvent();
+  FGetEntry(evt);
+
+  // Smearing the energy deposition (keV) using the detector resolution
+  fSmearedEdep.clear();
+  unsigned ii(0);
+  for (auto v : (*fEdep)) {
+    v = v * 1000;
+    if (fResFunc) {
+      auto fwhm = fResFunc->Eval(v) * v / 100.;
+      auto sig = fwhm / 2.355;
+      v = gRandom->Gaus(v, sig);
+    }
+    fSmearedEdep.push_back(v);
+  }
+
+  FCheckEvent();
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CEAcdAnalysis::FClearEvent() {
+  fEvtId = -1;
+  fNHits = -1;
+  (*fPixId).clear();
+  (*fEdep).clear();
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CEAcdAnalysis::EndOfEvent(Int_t evt) {
+  FClearEvent();
+
+  fCurEvt = -1;
+  fSmearedEdep.clear();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -64,38 +108,28 @@ void CEAcdAnalysis::FCheckEvent() {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Int_t> CEAcdAnalysis::GetPixelIds(Int_t ent) {
-  if (ent != fEntId) {
-    FGetEntry(ent);
-    FCheckEvent();
-  }
-
-  return *fPixId;
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Float_t> CEAcdAnalysis::GetEdeps(Int_t ent) {
-  if (ent != fEntId) {
-    FGetEntry(ent);
-    FCheckEvent();
-  }
-
-  // Convert to keV
-  vector<Float_t> vEdep;
-  for (auto v : (*fEdep)) {
-    v = v * 1000;
-
-    vEdep.push_back(v);
-  }
-
-  return vEdep;
-}
+//vector<Float_t> CEAcdAnalysis::GetEdeps(Int_t ent) {
+//  if (ent != fEntId) {
+//    FGetEntry(ent);
+//    FCheckEvent();
+//  }
+//
+//  // Convert to keV
+//  vector<Float_t> vEdep;
+//  for (auto v : (*fEdep)) {
+//    v = v * 1000;
+//
+//    vEdep.push_back(v);
+//  }
+//
+//  return vEdep;
+//}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Float_t CEAcdAnalysis::GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot) {
+Float_t CEAcdAnalysis::GetTotalEdep(Float_t &eUp, Float_t &eBot) {
   Float_t totE(0.);
-  auto edepV = GetEdeps(ent);
-  auto pixV = GetPixelIds(ent);
+  auto edepV = GetEdeps();
+  auto pixV = GetPixelIds();
 
   for (Int_t i = 0; i < pixV.size(); i++) {
     Int_t pid = pixV[i];
@@ -112,9 +146,9 @@ Float_t CEAcdAnalysis::GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot) {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Bool_t CEAcdAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
+Bool_t CEAcdAnalysis::IsTriggerOK(Int_t nTC) {
   Float_t eAcdUp(0.), eAcdBot(0.), totEdepAcd(0.);
-  totEdepAcd = this->GetTotalEdep(ent, eAcdUp, eAcdBot);
+  totEdepAcd = this->GetTotalEdep(eAcdUp, eAcdBot);
 
   switch (nTC) {
   case 1: // valid event: edep up ACD < 200 keV

@@ -12,6 +12,8 @@
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 CECalAnalysis::CECalAnalysis() {
+  fEdepPos.clear();
+  fSmearedEdep.clear();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
@@ -44,7 +46,61 @@ void CECalAnalysis::Init() {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CECalAnalysis::BeginOfEvent(Int_t evt) {
+  if (fCurEvt == evt) {
+    printf("[CECalAnalysis::BeginOfEvent] Already initialized this event (Id = %d)... \n", evt);
+    return;
+  }
+
+  fCurEvt = evt;
+
+  FClearEvent();
+  FGetEntry(evt);
+
+  // Smearing the energy deposition (keV) using the detector resolution
+  fSmearedEdep.clear();
+  unsigned ii(0);
+  for (auto v : (*fEdep)) {
+    v = v * 1000 + fEdepDel->at(ii++) * 1000;
+    if (fResFunc) {
+      auto fwhm = fResFunc->Eval(v) * v / 100.;
+      auto sig = fwhm / 2.355;
+      v = gRandom->Gaus(v, sig);
+    }
+    fSmearedEdep.push_back(v);
+  }
+
+  FCheckEvent();
+
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CECalAnalysis::EndOfEvent(Int_t evt) {
+  FClearEvent();
+
+  fCurEvt = -1;
+  fEdepPos.clear();
+  fSmearedEdep.clear();
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
+void CECalAnalysis::FClearEvent() {
+  fEvtId = -1;
+  fNHits = -1;
+  (*fPixId).clear();
+  (*fEdep).clear();
+  (*fEdepDel).clear();
+  (*fPosX).clear();
+  (*fPosY).clear();
+  (*fPosZ).clear();
+  (*fTime).clear();
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
 void CECalAnalysis::FCheckEvent() {
+
+//  cout << "Checking event...\n";
+
   Int_t nhits_p = fPixId->size();
   Int_t nhits_e = fEdep->size();
   Int_t nhits_d = fEdepDel->size();
@@ -60,12 +116,15 @@ void CECalAnalysis::FCheckEvent() {
 
   // Apply threshold >= 30 keV
   unsigned ii(0);
-  for (auto v : (*fEdep)) {
+//  for (auto v : (*fEdep)) {
+  for (auto v : fSmearedEdep) {
 
 //    if (((v < 30.e-3) && ((fEdepDel->at(ii)) < 30.e-3)) && ((fPixId->at(ii)) > 2 * NPIXEL)) {
-    if ((((v + (fEdepDel->at(ii))) * 1.E3 < CALTHRESHOLD)) || ((fPixId->at(ii)) > 2 * fNPIXEL)) {
+//    if ((((v + (fEdepDel->at(ii))) * 1.E3 < CALTHRESHOLD)) || ((fPixId->at(ii)) > 2 * fNPIXEL)) {
+    if ((v < CALTHRESHOLD) || ((fPixId->at(ii)) > 2 * fNPIXEL)) {
       fPixId->erase(fPixId->begin() + ii);
       fEdep->erase(fEdep->begin() + ii);
+      fSmearedEdep.erase(fSmearedEdep.begin() + ii);
       fEdepDel->erase(fEdepDel->begin() + ii);
       fPosX->erase(fPosX->begin() + ii);
       fPosY->erase(fPosY->begin() + ii);
@@ -81,51 +140,34 @@ void CECalAnalysis::FCheckEvent() {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Int_t CECalAnalysis::GetNHits(Int_t ent) {
-  FGetEntry(ent);
-  if (ent != fEntId) {
-    FCheckEvent();
-  }
-
-  return fNHits;
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Int_t> CECalAnalysis::GetPixelIds(Int_t ent) {
-  FGetEntry(ent);
-  if (ent != fEntId) {
-    FCheckEvent();
-  }
-
-  return *fPixId;
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Float_t> CECalAnalysis::GetEdeps(Int_t ent) {
-  FGetEntry(ent);
-  if (ent != fEntId) {
-    FCheckEvent();
-  }
-
-  // Convert to keV
-  vector<Float_t> vEdep;
-  int ii(0);
-  for (auto v : (*fEdep)) {
-    v = v * 1000 + fEdepDel->at(ii++) * 1000;
-
-    vEdep.push_back(v);
-  }
-
-  return vEdep;
-}
+//vector<Float_t> CECalAnalysis::GetEdeps() {
+////  FGetEntry(ent);
+//////  if (ent != fEntId) {
+////    FCheckEvent();
+//////  }
+//
+////  // Convert to keV
+////  vector<Float_t> vEdep;
+////  int ii(0);
+////  for (auto v : (*fEdep)) {
+////    v = v * 1000 + fEdepDel->at(ii++) * 1000;
+////
+////    // Smearing the energy deposition using the detector resolution
+//////    if (fResFunc) {
+//////      auto fwhm = fResFunc->Eval(v) * v / 100.;
+//////      auto sig = fwhm / 2.355;
+//////      v = gRandom->Gaus(v, sig);
+//////    }
+////
+////    vEdep.push_back(v);
+////  }
+//
+////  return vEdep;
+//  return fSmearedEdep;
+//}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<TVector3> CECalAnalysis::GetEdepPos(Int_t ent) {
-  FGetEntry(ent);
-  if (ent != fEntId) {
-    FCheckEvent();
-  }
-
+vector<TVector3> CECalAnalysis::GetEdepPos() {
   fEdepPos.clear();
 
   for (Int_t i = 0; i < fNHits; i++)
@@ -135,20 +177,10 @@ vector<TVector3> CECalAnalysis::GetEdepPos(Int_t ent) {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-vector<Float_t> CECalAnalysis::GetEdepTimes(Int_t ent) {
-  FGetEntry(ent);
-  if (ent != fEntId) {
-    FCheckEvent();
-  }
-
-  return *fTime;
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Float_t CECalAnalysis::GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot) {
+Float_t CECalAnalysis::GetTotalEdep(Float_t &eUp, Float_t &eBot) {
   Float_t totE(0.);
-  auto edepV = GetEdeps(ent);
-  auto pixV = GetPixelIds(ent);
+  auto edepV = GetEdeps();
+  auto pixV = GetPixelIds();
 
   for (unsigned i = 0; i < pixV.size(); i++) {
     Int_t pid = pixV[i];
@@ -159,9 +191,6 @@ Float_t CECalAnalysis::GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot) {
 
 //    if (!((pid == 91) || (pid == 221)))
 //      continue;
-
-//    cout << pid << '\t' << edep << endl;
-//    getchar();
 
     totE += edep;
 
@@ -175,11 +204,11 @@ Float_t CECalAnalysis::GetTotalEdep(Int_t ent, Float_t &eUp, Float_t &eBot) {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-void CECalAnalysis::GetSortedEdeps(Int_t ent, vector<Float_t> &edepV, vector<Int_t> &pixV) {
+void CECalAnalysis::GetSortedEdeps(vector<Float_t> &edepV, vector<Int_t> &pixV) {
   edepV.clear();
   pixV.clear();
-  edepV = GetEdeps(ent);
-  pixV = GetPixelIds(ent);
+  edepV = GetEdeps();
+  pixV = GetPixelIds();
 
   for (Int_t i = 0; i < pixV.size(); i++)
     for (Int_t j = i + 1; j < pixV.size(); j++) {
@@ -196,7 +225,7 @@ void CECalAnalysis::GetSortedEdeps(Int_t ent, vector<Float_t> &edepV, vector<Int
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
-Bool_t CECalAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
+Bool_t CECalAnalysis::IsTriggerOK(Int_t nTC) {
   Float_t eCalUp(0.), eCalBot(0.), totEdepCal(0.);
   bool inNear = false;
   vector<Float_t> edepV;
@@ -209,13 +238,13 @@ Bool_t CECalAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
 
   switch (nTC) {
   case 1: // valid event: total edep in calo > 0.0 keV
-    totEdepCal = this->GetTotalEdep(ent, eCalUp, eCalBot);
+    totEdepCal = this->GetTotalEdep(eCalUp, eCalBot);
     if (totEdepCal > 0.0)
       return true;
     break;
 
   case 2: // valid event: total edep in up calo layer > total edep in bottom calo layer
-    totEdepCal = this->GetTotalEdep(ent, eCalUp, eCalBot);
+    totEdepCal = this->GetTotalEdep(eCalUp, eCalBot);
     if (eCalUp > eCalBot)
       return true;
     break;
@@ -224,7 +253,7 @@ Bool_t CECalAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
     // valid event: at least one edep in the up calo layer;
     // for edep in multiple crystals max edep in up calo layer;
     // other edeps are only in the nearby crystals of the max edep
-    this->GetSortedEdeps(ent, edepV, pixV);
+    this->GetSortedEdeps(edepV, pixV);
     nHits = edepV.size();
 
     if (pixV[0] > fNPIXEL)
@@ -257,8 +286,8 @@ Bool_t CECalAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
     // at least one of the other edeps are in the nearby crystals of the max edep;
     // edep in the nearby crystals are greater than half of total edep in calo
 
-    totEdepCal = this->GetTotalEdep(ent, eCalUp, eCalBot);
-    this->GetSortedEdeps(ent, edepV, pixV);
+    totEdepCal = this->GetTotalEdep(eCalUp, eCalBot);
+    this->GetSortedEdeps(edepV, pixV);
     nHits = pixV.size();
 
 //    if ((nHits < 2) && (pixV[0] <= NPIXEL)) // if only one hit and that is in up layer
@@ -338,8 +367,8 @@ Bool_t CECalAnalysis::IsTriggerOK(Int_t ent, Int_t nTC) {
   case 5:
     // valid event: at least one edep in the up calo layer;
     // for edep in multiple crystals at least one of the other edeps are in the nearby crystals of the up crystal
-    totEdepCal = this->GetTotalEdep(ent, eCalUp, eCalBot);
-    this->GetSortedEdeps(ent, edepV, pixV);
+    totEdepCal = this->GetTotalEdep(eCalUp, eCalBot);
+    this->GetSortedEdeps(edepV, pixV);
     nHits = edepV.size();
 
     if ((nHits < 2) && (pixV[0] <= fNPIXEL)) // if only one hit and that is in up layer

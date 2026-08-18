@@ -110,9 +110,12 @@ void CEAnalysisAction::SetDepEngBin(Int_t nB, Float_t minE, Float_t maxE) {
   fDMaxE = maxE;
   if (nB > 0) {
     fDNBin = nB;
-    fDEngB = fPrimAna->LogEnergyBin(fDNBin, fDMinE, fDMaxE);
+    fDEngB = fCalAna->LogEnergyBin(fDNBin, fDMinE, fDMaxE);
   } else {
-    fDEngB = fPrimAna->ResoEnergyBin(fDMinE, fDMaxE);
+    Float_t funcPar[2] = { 7.003, 7.361 };
+//    Float_t funcPar[2] = { 3.922, 4.122 };
+    fCalAna->SetEngResFunction(fDMinE, fDMaxE, funcPar);
+    fDEngB = fCalAna->ResoEnergyBin(fDMinE, fDMaxE, 5);
     fDNBin = fDEngB.size() - 1;
   }
 }
@@ -203,7 +206,9 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events for normalization
   for (Int_t i = 0; i < fNEntCal; i++) {
-    TVector3 dir = fPrimAna->GetDirection(i);
+    fPrimAna->BeginOfEvent(i);
+
+    TVector3 dir = fPrimAna->GetDirection();
     // Consider up/down ward particles
     if (dnward) {
       if (dir.Z() >= 0) {
@@ -217,8 +222,10 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
       }
     }
 
-    Float_t peng = fPrimAna->GetEnergy(i);
+    Float_t peng = fPrimAna->GetEnergy();
     hPeng->Fill(peng);
+
+    fPrimAna->EndOfEvent(i);
   }
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -251,7 +258,8 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
-    TVector3 dir = fPrimAna->GetDirection(i);
+    fPrimAna->BeginOfEvent(i);
+    TVector3 dir = fPrimAna->GetDirection();
     hThAll->Fill(dir.CosTheta());
 
     // Consider up/down ward particles
@@ -268,16 +276,19 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
     }
 
     hThDn->Fill(dir.CosTheta());
-    Float_t peng = fPrimAna->GetEnergy(i);
+    Float_t peng = fPrimAna->GetEnergy();
 //    hPeng->Fill(peng);
 
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
+
     Float_t eCalUp(0.), eCalBot(0.);
-    Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
+    Float_t totEdepCal = fCalAna->GetTotalEdep(eCalUp, eCalBot);
 
     Float_t eAcdUp(0.), eAcdBot(0.);
-    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
+    Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
     Float_t totEdep = totEdepAcd + totEdepCal;
-    Int_t nHits = fCalAna->GetNHits(i);
+    Int_t nHits = fCalAna->GetNHits();
 
 //    if (!totEdep) {
 //      continue;
@@ -349,7 +360,7 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
       continue;
     }
 
-    // cond 4: TODO: need to check also for individual pixel depositions in a single event
+    // cond 4:
     if (eCalUp < eCalBot) {
       fNTrigCut4++;
       continue;
@@ -380,7 +391,7 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
 
     vector<Float_t> edepCal;
     vector<Int_t> pixCal;
-    fCalAna->GetSortedEdeps(i, edepCal, pixCal);
+    fCalAna->GetSortedEdeps(edepCal, pixCal);
 
     hMaxEdepPix->Fill(pixCal[0], hNorm->GetBinContent(hNorm->FindBin(peng)));
 
@@ -409,8 +420,8 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
       hMedepSameCal->Fill(1);
 
     // Position analysis
-    vector<TVector3> posVec = fCalAna->GetEdepPos(i);
-    vector<Int_t> pixId = fCalAna->GetPixelIds(i);
+    vector<TVector3> posVec = fCalAna->GetEdepPos();
+    vector<Int_t> pixId = fCalAna->GetPixelIds();
     Int_t id = 0;
     for (auto v : pixId) {
       if (v == pixCal[0])
@@ -420,6 +431,11 @@ void CEAnalysisAction::AnaGamma(bool dnward) {
     TVector3 maxEdepPos = posVec[id];
     maxEdepPos.SetMag(150.); // project on the sphere of 15 cm radius
     h2maxEdepPosXY->Fill(maxEdepPos.X(), maxEdepPos.Y());
+
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
+
   } // end loop over entries
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -553,7 +569,8 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events for event normalization
   for (Int_t i = 0; i < fNEntCal; i++) {
-    TVector3 dirV = fPrimAna->GetDirection(i);
+    fPrimAna->BeginOfEvent(i);
+    TVector3 dirV = fPrimAna->GetDirection();
 
     // Consider up/down ward particles
     if (dir == 1) {
@@ -566,8 +583,10 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
       }
     }
 
-    Float_t peng = fPrimAna->GetEnergy(i);
+    Float_t peng = fPrimAna->GetEnergy();
     hPeng->Fill(peng);
+
+    fPrimAna->EndOfEvent(i);
   }
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -616,7 +635,9 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
-    TVector3 dirV = fPrimAna->GetDirection(i);
+    fPrimAna->BeginOfEvent(i);
+
+    TVector3 dirV = fPrimAna->GetDirection();
     hThAll->Fill(dirV.CosTheta());
 
     // Consider up/down ward particles
@@ -634,15 +655,20 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
 
     hThDir->Fill(dirV.CosTheta());
 
-    Float_t peng = fPrimAna->GetEnergy(i);
+    Float_t peng = fPrimAna->GetEnergy();
+
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
+//    cout << "Event: " << i << endl;
 
     Float_t eCalUp(0.), eCalBot(0.);
-    Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
+    Float_t totEdepCal = fCalAna->GetTotalEdep(eCalUp, eCalBot);
+//    cout << totEdepCal << "\t" << eCalUp << "\t" << eCalBot  << endl;
 
     Float_t eAcdUp(0.), eAcdBot(0.);
-    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
+    Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
 
-    Int_t nHits = (fCalAna->GetEdeps(i)).size();
+    Int_t nHits = (fCalAna->GetEdeps()).size();
 
     h2PDengCal->Fill(peng, totEdepCal);
     h2PDengAcdUp->Fill(peng, eAcdUp);
@@ -651,24 +677,24 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Trigger conditions
-    if (!(fAcdAna->IsTriggerOK(i, 1)))
+    if (!(fAcdAna->IsTriggerOK(1)))
       continue;
-    if (!(fAcdAna->IsTriggerOK(i, 2)))
+    if (!(fAcdAna->IsTriggerOK(2)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 1)))
+    if (!(fCalAna->IsTriggerOK(1)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 2)))
+    if (!(fCalAna->IsTriggerOK(2)))
       continue;
 
     hEdepCalBT->Fill(totEdepCal);
 
     if (!strcmp(fTrigConf.c_str(), "TT"))
-      if (!(fCalAna->IsTriggerOK(i, 4)))
+      if (!(fCalAna->IsTriggerOK(4)))
         continue;
 
     vector<Float_t> edepCal;
     vector<Int_t> pixCal;
-    fCalAna->GetSortedEdeps(i, edepCal, pixCal);
+    fCalAna->GetSortedEdeps(edepCal, pixCal);
 
     h2PDengCalTrig->Fill(peng, totEdepCal);
     hEdepCal->Fill(totEdepCal);
@@ -696,8 +722,8 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
     }
 
     // Position analysis
-    vector<TVector3> posVec = fCalAna->GetEdepPos(i);
-    vector<Int_t> pixId = fCalAna->GetPixelIds(i);
+    vector<TVector3> posVec = fCalAna->GetEdepPos();
+    vector<Int_t> pixId = fCalAna->GetPixelIds();
     Int_t id = 0;
     for (auto v : pixId) {
       if (v == pixCal[0])
@@ -709,8 +735,16 @@ void CEAnalysisAction::AnalyzeBkg(TString type, Int_t dir) {
     h2maxEdepPosXY->Fill(maxEdepPos.X(), maxEdepPos.Y());
 
     if (!(i % 1000))
-      cout << "Analysis of event no. " << i << " complete!\n";
+      fCalAna->PrintProgress(((Float_t) i / fNEntCal));
+//      cout << "Analysis of event no. " << i << " complete!\n";
+
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
   } // end loop over entries
+
+  fCalAna->PrintProgress(1.);
+  cout << endl;
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Discarded counts
@@ -834,8 +868,12 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
-    TVector3 pos = fPrimAna->GetVertexPos(i);
+    fPrimAna->BeginOfEvent(i);
+    TVector3 pos = fPrimAna->GetVertexPos();
     hPos->Fill(pos.X(), pos.Y(), pos.Z());
+
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
 
     Float_t eCalUp(0.), eCalBot(0.);
     Float_t totEdepCal(0.);  // = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
@@ -844,19 +882,19 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
 //    getchar();
 
     Float_t eAcdUp(0.), eAcdBot(0.);
-    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
+    Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
 
-    Int_t nHits = (fCalAna->GetEdeps(i)).size();
+    Int_t nHits = (fCalAna->GetEdeps()).size();
 
     vector<Float_t> edepVS;
     vector<Int_t> pixVS;
-    fCalAna->GetSortedEdeps(i, edepVS, pixVS);
+    fCalAna->GetSortedEdeps(edepVS, pixVS);
 
     Int_t nPix = 0;
 
     // pixel edep and Id
-    auto edepV = fCalAna->GetEdeps(i);
-    auto pixV = fCalAna->GetPixelIds(i);
+    auto edepV = fCalAna->GetEdeps();
+    auto pixV = fCalAna->GetPixelIds();
 
     // Time (random) of the event
     Float_t evtTime = gRandom->Uniform(0, simT);
@@ -903,19 +941,19 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
 //        && fCalAna->IsTriggerOK(i, 2)) {
 //    if (fAcdAna->IsTriggerOK(i, 1) && fAcdAna->IsTriggerOK(i, 2) && fCalAna->IsTriggerOK(i, 1)
 //        && fCalAna->IsTriggerOK(i, 2) && fCalAna->IsTriggerOK(i, 4)) {
-    if (!(fAcdAna->IsTriggerOK(i, 1)))
+    if (!(fAcdAna->IsTriggerOK(1)))
       continue;
-    if (!(fAcdAna->IsTriggerOK(i, 2)))
+    if (!(fAcdAna->IsTriggerOK(2)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 1)))
+    if (!(fCalAna->IsTriggerOK(1)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 2)))
+    if (!(fCalAna->IsTriggerOK(2)))
       continue;
 
     hEdepCalBT->Fill(totEdepCal);
 
     if (!strcmp(fTrigConf.c_str(), "TT"))
-      if (!(fCalAna->IsTriggerOK(i, 4)))
+      if (!(fCalAna->IsTriggerOK(4)))
         continue;
 
     vEvt.push_back(evt);
@@ -928,8 +966,16 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
 //    }
 
     if (!(i % 1000))
-      cout << "Analysis of event no. " << i << " complete!\n";
+      fCalAna->PrintProgress(((Float_t) i / fNEntCal));
+//      cout << "Analysis of event no. " << i << " complete!\n";
+
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
   } // end loop over entries
+
+  fCalAna->PrintProgress(1.);
+  cout << endl;
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Discarded counts
@@ -1022,11 +1068,16 @@ void CEAnalysisAction::AnaIntrinsic(bool bothLyr) {
 void CEAnalysisAction::CalcEffArea() {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Histograms
-  TH1F *hPeng = new TH1F("hPeng", "; Energy (keV); Entries", fPNBin, &fPEngB[0]);
-  TH1F *hEffArea = new TH1F("hEffArea", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
-  TH1F *hEffArea1P = new TH1F("hEffArea1P", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
-  TH1F *hEffAreaN = new TH1F("hEffAreaN", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
-  TH1F *hEffAreaAll = new TH1F("hEffAreaAll", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
+//  TH1F *hPeng = new TH1F("hPeng", "; Energy (keV); Entries", fPNBin, &fPEngB[0]);
+//  TH1F *hEffArea = new TH1F("hEffArea", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
+//  TH1F *hEffArea1P = new TH1F("hEffArea1P", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
+//  TH1F *hEffAreaN = new TH1F("hEffAreaN", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
+//  TH1F *hEffAreaAll = new TH1F("hEffAreaAll", "; Energy (keV); Effective Area (cm^{2})", fPNBin, &fPEngB[0]);
+  TH1F *hPeng = new TH1F("hPeng", "; Energy (keV); Entries", fDNBin, &fDEngB[0]);
+  TH1F *hEffArea = new TH1F("hEffArea", "; Energy (keV); Effective Area (cm^{2})", fDNBin, &fDEngB[0]);
+  TH1F *hEffArea1P = new TH1F("hEffArea1P", "; Energy (keV); Effective Area (cm^{2})", fDNBin, &fDEngB[0]);
+  TH1F *hEffAreaN = new TH1F("hEffAreaN", "; Energy (keV); Effective Area (cm^{2})", fDNBin, &fDEngB[0]);
+  TH1F *hEffAreaAll = new TH1F("hEffAreaAll", "; Energy (keV); Effective Area (cm^{2})", fDNBin, &fDEngB[0]);
 //  TH2F *h2PDengCalTrig = new TH2F("hPDengCalTrig", "Cal triger; Incident energy (keV); Depositied energy (keV); Counts",
 //      fPNBin, &fPEngB[0], fDNBin, &fDEngB[0]);
 
@@ -1042,9 +1093,12 @@ void CEAnalysisAction::CalcEffArea() {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
-//    cout << "Event " << i << endl;
-    Float_t peng = fPrimAna->GetEnergy(i);
+    fPrimAna->BeginOfEvent(i);
+    Float_t peng = fPrimAna->GetEnergy();
     hPeng->Fill(peng);
+
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
 
 //    Float_t eCalUp(0.), eCalBot(0.);
 //    Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
@@ -1052,7 +1106,7 @@ void CEAnalysisAction::CalcEffArea() {
 //    Float_t eAcdUp(0.), eAcdBot(0.);
 //    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
 //
-    Int_t nHits = (fCalAna->GetEdeps(i)).size();
+    Int_t nHits = (fCalAna->GetEdeps()).size();
 //
 //    vector<Float_t> edepV;
 //    vector<Int_t> pixV;
@@ -1060,20 +1114,20 @@ void CEAnalysisAction::CalcEffArea() {
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Trigger conditions
-    if (fCalAna->IsTriggerOK(i, 1))
+    if (fCalAna->IsTriggerOK(1))
       hEffAreaAll->Fill(peng);
 
     // Trigger conditions
-    if (!(fAcdAna->IsTriggerOK(i, 1)))
+    if (!(fAcdAna->IsTriggerOK(1)))
       continue;
-    if (!(fAcdAna->IsTriggerOK(i, 2)))
+    if (!(fAcdAna->IsTriggerOK(2)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 1)))
+    if (!(fCalAna->IsTriggerOK(1)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 2)))
+    if (!(fCalAna->IsTriggerOK(2)))
       continue;
     if (!strcmp(fTrigConf.c_str(), "TT"))
-      if (!(fCalAna->IsTriggerOK(i, 4)))
+      if (!(fCalAna->IsTriggerOK(4)))
         continue;
 
 //    if (fAcdAna->IsTriggerOK(i, 1) && fAcdAna->IsTriggerOK(i, 2) && fCalAna->IsTriggerOK(i, 1)
@@ -1095,7 +1149,18 @@ void CEAnalysisAction::CalcEffArea() {
 //    if (fCalAna->IsTriggerOK(i, 1) && fAcdAna->IsTriggerOK(i, 1) && fAcdAna->IsTriggerOK(i, 2)
 //        && fCalAna->IsTriggerOK(i, 2) && fCalAna->IsTriggerOK(i, 4))
 //      hEffAreaN->Fill(peng);
+
+    if (!(i % 1000))
+      fCalAna->PrintProgress(((Float_t) i / fNEntCal));
+//      cout << "Analysis of event no. " << i << " complete!\n";
+
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
   } // end loop over entries
+
+  fCalAna->PrintProgress(1.);
+  cout << endl;
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Calculate effective area from the histos
@@ -1134,14 +1199,19 @@ void CEAnalysisAction::AnalyzeGRB() {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
-    Float_t peng = fPrimAna->GetEnergy(i);
+    fPrimAna->BeginOfEvent(i);
+
+    Float_t peng = fPrimAna->GetEnergy();
     hPeng->Fill(peng);
 
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
+
     Float_t eCalUp(0.), eCalBot(0.);
-    Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
+    Float_t totEdepCal = fCalAna->GetTotalEdep(eCalUp, eCalBot);
 
     Float_t eAcdUp(0.), eAcdBot(0.);
-    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
+    Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
 
 //    Int_t nHits = (fCalAna->GetEdeps(i)).size();
 //
@@ -1155,23 +1225,33 @@ void CEAnalysisAction::AnalyzeGRB() {
 //    if (fAcdAna->IsTriggerOK(i, 1) && fAcdAna->IsTriggerOK(i, 2) && fCalAna->IsTriggerOK(i, 1)
 //        && fCalAna->IsTriggerOK(i, 2) /*&& fCalAna->IsTriggerOK(i, 4)*/) {
 
-    if (!(fAcdAna->IsTriggerOK(i, 1)))
+    if (!(fAcdAna->IsTriggerOK(1)))
       continue;
-    if (!(fAcdAna->IsTriggerOK(i, 2)))
+    if (!(fAcdAna->IsTriggerOK(2)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 1)))
+    if (!(fCalAna->IsTriggerOK(1)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 2)))
+    if (!(fCalAna->IsTriggerOK(2)))
       continue;
     if (!strcmp(fTrigConf.c_str(), "TT"))
-      if (!(fCalAna->IsTriggerOK(i, 4)))
+      if (!(fCalAna->IsTriggerOK(4)))
         continue;
 
     h2PDengCalTrig->Fill(peng, totEdepCal);
     hEdepCal->Fill(totEdepCal);
 //    }
 
+    if (!(i % 1000))
+      fCalAna->PrintProgress(((Float_t) i / fNEntCal));
+//      cout << "Analysis of event no. " << i << " complete!\n";
+
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
   } // end loop over entries
+
+  fCalAna->PrintProgress(1.);
+  cout << endl;
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Discarded counts
@@ -1376,7 +1456,9 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events for event normalization
   for (Int_t i = 0; i < fNEntCal; i++) {
-    hPeng->Fill(fPrimAna->GetEnergy(i));
+    fPrimAna->BeginOfEvent(i);
+    hPeng->Fill(fPrimAna->GetEnergy());
+    fPrimAna->EndOfEvent(i);
   }
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1425,6 +1507,10 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Loop on events
   for (Int_t i = 0; i < fNEntCal; i++) {
+    fPrimAna->BeginOfEvent(i);
+    fCalAna->BeginOfEvent(i);
+    fAcdAna->BeginOfEvent(i);
+
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Trigger conditions
 
@@ -1432,27 +1518,27 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
 //        && fCalAna->IsTriggerOK(i, 2) /*&& fCalAna->IsTriggerOK(i, 4)*/))
 //      continue;
 
-    if (!(fAcdAna->IsTriggerOK(i, 1)))
+    if (!(fAcdAna->IsTriggerOK(1)))
       continue;
-    if (!(fAcdAna->IsTriggerOK(i, 2)))
+    if (!(fAcdAna->IsTriggerOK(2)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 1)))
+    if (!(fCalAna->IsTriggerOK(1)))
       continue;
-    if (!(fCalAna->IsTriggerOK(i, 2)))
+    if (!(fCalAna->IsTriggerOK(2)))
       continue;
     if (!strcmp(fTrigConf.c_str(), "TT"))
-      if (!(fCalAna->IsTriggerOK(i, 4)))
+      if (!(fCalAna->IsTriggerOK(4)))
         continue;
 
-    Float_t peng = fPrimAna->GetEnergy(i);
+    Float_t peng = fPrimAna->GetEnergy();
     bPeng = peng;
 
     Float_t eCalUp(0.), eCalBot(0.);
-    Float_t totEdepCal = fCalAna->GetTotalEdep(i, eCalUp, eCalBot);
+    Float_t totEdepCal = fCalAna->GetTotalEdep(eCalUp, eCalBot);
     bTotedep = totEdepCal;
 
     Float_t eAcdUp(0.), eAcdBot(0.);
-    Float_t totEdepAcd = fAcdAna->GetTotalEdep(i, eAcdUp, eAcdBot);
+    Float_t totEdepAcd = fAcdAna->GetTotalEdep(eAcdUp, eAcdBot);
 
     h2PDengCalTrig->Fill(peng, totEdepCal);
     hEdepCal->Fill(totEdepCal);
@@ -1468,7 +1554,7 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
     bPixlyr.clear();
     edepAcd.clear();
     pixAcd.clear();
-    fCalAna->GetSortedEdeps(i, edepCal, pixCal);
+    fCalAna->GetSortedEdeps(edepCal, pixCal);
 
     hNormEdepTotCal->Fill(totEdepCal, hNorm->GetBinContent(hNorm->FindBin(peng))); // normalized calo edep spectrum (cnt/s)
     hNormEdepTotCalF->Fill(totEdepCal, hNormF->GetBinContent(hNormF->FindBin(peng))); // normalized calo edep spectrum (cnt/s)
@@ -1499,8 +1585,8 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
 //      h3PDengPixTrig->Fill(peng, (edepCal[np] / totEdepCal), v);
     }
 
-    edepAcd = fAcdAna->GetEdeps(i);
-    pixAcd = fAcdAna->GetPixelIds(i);
+    edepAcd = fAcdAna->GetEdeps();
+    pixAcd = fAcdAna->GetPixelIds();
     for (int np = 0; np < pixAcd.size(); np++) {
       auto v = pixAcd[np];
       if (v >= fNPIXEL) {
@@ -1519,9 +1605,16 @@ void CEAnalysisAction::AnalyzeFiducialGRB() {
     tEdepPix->Fill();
 
     if (!(i % 1000))
-      cout << "Analysis of event no. " << i << " complete!\n";
+      fCalAna->PrintProgress(((Float_t) i / fNEntCal));
+//      cout << "Analysis of event no. " << i << " complete!\n";
 
+    fCalAna->EndOfEvent(i);
+    fAcdAna->EndOfEvent(i);
+    fPrimAna->EndOfEvent(i);
   } // end loop over entries
+
+  fCalAna->PrintProgress(1.);
+  cout << endl;
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Discarded counts

@@ -16,6 +16,8 @@
 
 #include "Rtypes.h"
 #include "TVector3.h"
+#include "TF1.h"
+#include "TRandom.h"
 
 #include "analysis/CEIOStreamer.hh"
 
@@ -61,9 +63,19 @@ public:
 
   // Get energy bins equal in log scale
   vector<Float_t> LogEnergyBin(Int_t nBins, Float_t minE, Float_t maxE);
+
+  // Set energy resolution function
+  void SetEngResFunction(Float_t minE, Float_t maxE, Float_t *par, Int_t flag = 1);
+
+  // Get energy resolution function
+  TF1* GetEngResFunction() {
+    return fResFunc;
+  }
+
   // Get energy bins according to detector resolution
-  vector<Float_t> ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins = 5, Float_t par0 = 7.003,
-      Float_t par1 = 7.361);
+  vector<Float_t> ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins = 5);
+//  vector<Float_t> ResoEnergyBin(Float_t minE, Float_t maxE, Int_t nBins = 5, Float_t par0 = 7.003,
+//      Float_t par1 = 7.361);
 
   Int_t GetNEntries() {
     return fNEntries;
@@ -90,6 +102,8 @@ public:
   Float_t GetSrcMaxTheta(char flag = 'b');
 
   Float_t GetIntBkgRate(bool bothLyr = true);
+
+  void PrintProgress(Float_t percentage);
 
 protected:
   // Fixed parameters for the analysis
@@ -141,6 +155,7 @@ protected:
   string fGeomVer = "";
   Int_t fNPIXEL = 0;
   Float_t fDETRAD = 0;
+  TF1 *fResFunc = nullptr;
 };
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo....
